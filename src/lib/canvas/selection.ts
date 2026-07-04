@@ -1,4 +1,4 @@
-import type { TextNode } from './nodes';
+import type { Page } from './pages';
 import type { Point } from './viewport';
 
 export type SelectionRect = Point & {
@@ -18,11 +18,11 @@ export function normalizeRect(start: Point, end: Point): SelectionRect {
 	};
 }
 
-export function findNodesInRect(nodes: TextNode[], rect: SelectionRect): number[] {
+export function findPagesInRect(pages: Page[], rect: SelectionRect): number[] {
 	const maxX = rect.x + rect.width;
 	const maxY = rect.y + rect.height;
 
-	return nodes
-		.filter((node) => node.x >= rect.x && node.x <= maxX && node.y >= rect.y && node.y <= maxY)
-		.map((node) => node.id);
+	return pages
+		.filter((page) => page.x >= rect.x && page.x <= maxX && page.y >= rect.y && page.y <= maxY)
+		.map((page) => page.id);
 }

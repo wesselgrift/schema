@@ -1,17 +1,17 @@
 export type FlowEdge = {
 	id: number;
-	fromNodeId: number;
-	toNodeId: number;
+	fromPageId: number;
+	toPageId: number;
 };
 
-export function createFlowEdge(id: number, fromNodeId: number, toNodeId: number): FlowEdge {
+export function createFlowEdge(id: number, fromPageId: number, toPageId: number): FlowEdge {
 	return {
 		id,
-		fromNodeId,
-		toNodeId
+		fromPageId,
+		toPageId
 	};
 }
 
-export function hasFlowEdge(edges: FlowEdge[], fromNodeId: number, toNodeId: number): boolean {
-	return edges.some((edge) => edge.fromNodeId === fromNodeId && edge.toNodeId === toNodeId);
+export function hasFlowEdge(edges: FlowEdge[], fromPageId: number, toPageId: number): boolean {
+	return edges.some((edge) => edge.fromPageId === fromPageId && edge.toPageId === toPageId);
 }

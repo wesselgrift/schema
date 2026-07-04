@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { findNodesInRect, normalizeRect } from './selection';
+import { findPagesInRect, normalizeRect } from './selection';
 
-const nodes = [
-	{ id: 1, x: 0, y: 0, text: '' },
-	{ id: 2, x: 100, y: 100, text: '' },
-	{ id: 3, x: 300, y: 300, text: '' }
+const pages = [
+	{ id: 1, x: 0, y: 0, title: 'Page 1', description: '' },
+	{ id: 2, x: 100, y: 100, title: 'Page 2', description: '' },
+	{ id: 3, x: 300, y: 300, title: 'Page 3', description: '' }
 ];
 
 describe('canvas selection', () => {
@@ -17,9 +17,9 @@ describe('canvas selection', () => {
 		});
 	});
 
-	test('finds notes with centers inside a selection rectangle', () => {
+	test('finds pages with centers inside a selection rectangle', () => {
 		const rect = normalizeRect({ x: -20, y: -20 }, { x: 150, y: 150 });
 
-		expect(findNodesInRect(nodes, rect)).toEqual([1, 2]);
+		expect(findPagesInRect(pages, rect)).toEqual([1, 2]);
 	});
 });

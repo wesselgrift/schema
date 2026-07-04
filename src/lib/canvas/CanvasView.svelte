@@ -6,9 +6,9 @@
 		type Point,
 		type Viewport
 	} from './viewport';
-	import { createTextNode, moveTextNode, type TextNode } from './nodes';
+	import { createPage, movePage, type Page } from './pages';
 	import { createFlowEdge, hasFlowEdge, type FlowEdge } from './edges';
-	import { findNodesInRect, normalizeRect, type SelectionRect } from './selection';
+	import { findPagesInRect, normalizeRect, type SelectionRect } from './selection';
 
 	type DragState = {
 		pointerId: number;
@@ -18,14 +18,14 @@
 		hasDragged: boolean;
 	};
 
-	type NoteDragState = {
+	type PageDragState = {
 		pointerId: number;
-		nodeId: number;
+		pageId: number;
 		startScreen: Point;
 		startWorld: Point;
 	};
 
-	type SelectionNodeStart = Point & {
+	type SelectionPageStart = Point & {
 		id: number;
 	};
 
@@ -33,7 +33,7 @@
 		pointerId: number;
 		startScreen: Point;
 		startWorld: Point;
-		nodes: SelectionNodeStart[];
+		pages: SelectionPageStart[];
 		hasDragged: boolean;
 	};
 
@@ -51,32 +51,32 @@
 		hasDragged: boolean;
 	};
 
-	type Tool = 'select' | 'add-note' | 'pan' | 'connect';
+	type Tool = 'select' | 'add-page' | 'pan' | 'connect';
 
 	const GRID_SIZE = 32;
-	const NOTE_WIDTH = 180;
-	const NOTE_MIN_HEIGHT = 96;
+	const PAGE_WIDTH = 180;
+	const PAGE_MIN_HEIGHT = 96;
 	const DRAG_THRESHOLD = 4;
 	const ZOOM_SPEED = 0.0015;
 	const KEYBOARD_PAN_STEP = 48;
 	const INITIAL_VIEWPORT: Viewport = { x: 0, y: 0, scale: 1 };
 
 	let viewport: Viewport = $state({ ...INITIAL_VIEWPORT });
-	let textNodes: TextNode[] = $state([]);
+	let pages: Page[] = $state([]);
 	let flowEdges: FlowEdge[] = $state([]);
-	let pendingFocusNodeId: number | null = $state(null);
-let activeTool = $state<Tool>('select');
+	let pendingFocusPageId: number | null = $state(null);
+	let activeTool = $state<Tool>('select');
 	let isSpacePanning = $state(false);
-	let nextNodeId = 1;
+	let nextPageId = 1;
 	let nextEdgeId = 1;
-	let pendingConnectionNodeId: number | null = $state(null);
-	let selectedNodeIds = $state<number[]>([]);
+	let pendingConnectionPageId: number | null = $state(null);
+	let selectedPageIds = $state<number[]>([]);
 	let selectionDrag = $state<SelectionDragState | null>(null);
 	let marqueeDrag = $state<MarqueeDragState | null>(null);
 	let drag: DragState | null = null;
 	let addClick: AddClickState | null = null;
-	let noteDrag: NoteDragState | null = null;
-	let focusedNodeId: number | null = null;
+	let pageDrag: PageDragState | null = null;
+	let focusedPageId: number | null = null;
 	const textareaElements: Record<number, HTMLTextAreaElement | undefined> = {};
 
 	let zoomPercent = $derived(Math.round(viewport.scale * 100));
@@ -92,12 +92,12 @@ let activeTool = $state<Tool>('select');
 	);
 	let surfaceAriaLabel = $derived(
 		activeTool === 'connect'
-			? 'Canvas. Use note connector handles to draw directed flow lines, hold Space and drag to pan, command or control wheel to zoom.'
+			? 'Canvas. Use page connector handles to draw directed flow lines, hold Space and drag to pan, command or control wheel to zoom.'
 			: activeTool === 'select'
-			? 'Canvas. Click notes to select, drag empty canvas to marquee select, hold Space and drag to pan, command or control wheel to zoom.'
+			? 'Canvas. Click pages to select, drag empty canvas to marquee select, hold Space and drag to pan, command or control wheel to zoom.'
 			: isPanActive
 			? 'Canvas. Drag to pan, wheel or trackpad scroll to pan, command or control wheel to zoom.'
-			: 'Canvas. Click empty canvas or press Enter to add a note, hold Space and drag to pan, command or control wheel to zoom.'
+			: 'Canvas. Click empty canvas or press Enter to add a page, hold Space and drag to pan, command or control wheel to zoom.'
 	);
 
 	function wrap(value: number, size: number): number {
@@ -156,18 +156,6 @@ let activeTool = $state<Tool>('select');
 		return Boolean(target.closest('textarea, input, select, button, [contenteditable]'));
 	}
 
-	$effect(() => {
-		const nodeId = pendingFocusNodeId;
-		if (nodeId === null || focusedNodeId === nodeId) return;
-
-		const textarea = textareaElements[nodeId];
-		if (!textarea) return;
-
-		textarea.focus();
-		textarea.select();
-		focusedNodeId = nodeId;
-	});
-
 	function stopCanvasEvent(event: Event) {
 		event.stopPropagation();
 	}
@@ -177,91 +165,93 @@ let activeTool = $state<Tool>('select');
 		event.stopPropagation();
 	}
 
-	function handleToolbarEvent(event: Event) {
-		event.stopPropagation();
-	}
-
-	function trackTextarea(nodeId: number) {
+	function trackTextarea(pageId: number) {
 		return (node: HTMLTextAreaElement) => {
-			textareaElements[nodeId] = node;
+			textareaElements[pageId] = node;
+
+			if (pendingFocusPageId === pageId && focusedPageId !== pageId) {
+				node.focus();
+				node.select();
+				focusedPageId = pageId;
+			}
 
 			return () => {
-				if (textareaElements[nodeId] === node) {
-					delete textareaElements[nodeId];
+				if (textareaElements[pageId] === node) {
+					delete textareaElements[pageId];
 				}
 			};
 		};
 	}
 
-	function addTextNode(screenPoint: Point) {
+	function addPage(screenPoint: Point) {
 		const worldPoint = screenToWorld(screenPoint, viewport);
-		const node = createTextNode(nextNodeId++, worldPoint);
+		const page = createPage(nextPageId++, worldPoint);
 
-		textNodes.push(node);
-		pendingFocusNodeId = node.id;
+		pages.push(page);
+		pendingFocusPageId = page.id;
 	}
 
-	function moveTextNodeById(nodeId: number, point: Point) {
-		textNodes = textNodes.map((node) => (node.id === nodeId ? moveTextNode(node, point) : node));
+	function movePageById(pageId: number, point: Point) {
+		pages = pages.map((page) => (page.id === pageId ? movePage(page, point) : page));
 	}
 
-	function isSelected(nodeId: number): boolean {
-		return selectedNodeIds.includes(nodeId);
+	function isSelected(pageId: number): boolean {
+		return selectedPageIds.includes(pageId);
 	}
 
-	function selectOnly(nodeId: number) {
-		selectedNodeIds = [nodeId];
+	function selectOnly(pageId: number) {
+		selectedPageIds = [pageId];
 	}
 
-	function moveSelectedNodes(delta: Point, starts: SelectionNodeStart[]) {
-		const startPositions = new Map(starts.map((node) => [node.id, node]));
+	function moveSelectedPages(delta: Point, starts: SelectionPageStart[]) {
+		const startPositions = new Map(starts.map((page) => [page.id, page]));
 
-		textNodes = textNodes.map((node) => {
-			const start = startPositions.get(node.id);
-			return start ? moveTextNode(node, { x: start.x + delta.x, y: start.y + delta.y }) : node;
+		pages = pages.map((page) => {
+			const start = startPositions.get(page.id);
+			return start ? movePage(page, { x: start.x + delta.x, y: start.y + delta.y }) : page;
 		});
 	}
 
-	function getNodeById(nodeId: number): TextNode | undefined {
-		return textNodes.find((node) => node.id === nodeId);
+	function getPageById(pageId: number): Page | undefined {
+		return pages.find((page) => page.id === pageId);
 	}
 
-	function getEdgePath(fromNode: TextNode, toNode: TextNode): string {
-		const dx = toNode.x - fromNode.x;
-		const controlDistance = Math.max(Math.abs(dx) * 0.5, NOTE_WIDTH * 0.45);
+	function getEdgePath(fromPage: Page, toPage: Page): string {
+		const dx = toPage.x - fromPage.x;
+		const controlDistance = Math.max(Math.abs(dx) * 0.5, PAGE_WIDTH * 0.45);
 		const direction = dx >= 0 ? 1 : -1;
-		const sourceControlX = fromNode.x + controlDistance * direction;
-		const targetControlX = toNode.x - controlDistance * direction;
+		const sourceControlX = fromPage.x + controlDistance * direction;
+		const targetControlX = toPage.x - controlDistance * direction;
 
-		return `M ${fromNode.x} ${fromNode.y} C ${sourceControlX} ${fromNode.y}, ${targetControlX} ${toNode.y}, ${toNode.x} ${toNode.y}`;
+		return `M ${fromPage.x} ${fromPage.y} C ${sourceControlX} ${fromPage.y}, ${targetControlX} ${toPage.y}, ${toPage.x} ${toPage.y}`;
 	}
 
 	function handleConnectorPointerEvent(event: PointerEvent) {
 		stopCanvasDragEvent(event);
 	}
 
-	function handleConnectorClick(event: MouseEvent, nodeId: number) {
+	function handleConnectorClick(event: MouseEvent, pageId: number) {
 		event.preventDefault();
 		event.stopPropagation();
 
-		if (pendingConnectionNodeId === null) {
-			pendingConnectionNodeId = nodeId;
+		if (pendingConnectionPageId === null) {
+			pendingConnectionPageId = pageId;
 			return;
 		}
 
-		if (pendingConnectionNodeId === nodeId) {
-			pendingConnectionNodeId = null;
+		if (pendingConnectionPageId === pageId) {
+			pendingConnectionPageId = null;
 			return;
 		}
 
-		if (!hasFlowEdge(flowEdges, pendingConnectionNodeId, nodeId)) {
-			flowEdges.push(createFlowEdge(nextEdgeId++, pendingConnectionNodeId, nodeId));
+		if (!hasFlowEdge(flowEdges, pendingConnectionPageId, pageId)) {
+			flowEdges.push(createFlowEdge(nextEdgeId++, pendingConnectionPageId, pageId));
 		}
 
-		pendingConnectionNodeId = null;
+		pendingConnectionPageId = null;
 	}
 
-	function handleNotePointerDown(event: PointerEvent, node: TextNode) {
+	function handlePagePointerDown(event: PointerEvent, page: Page) {
 		if (event.button !== 0) return;
 
 		const header = event.currentTarget as HTMLElement;
@@ -273,31 +263,31 @@ let activeTool = $state<Tool>('select');
 			const surface = getSurfaceFromCurrentTarget(event);
 			if (!surface) return;
 
-			if (!isSelected(node.id)) {
-				selectOnly(node.id);
+			if (!isSelected(page.id)) {
+				selectOnly(page.id);
 			}
 
 			selectionDrag = {
 				pointerId: event.pointerId,
 				startScreen: { x: event.clientX, y: event.clientY },
 				startWorld: getWorldPoint(event, surface),
-				nodes: textNodes
-					.filter((textNode) => selectedNodeIds.includes(textNode.id))
-					.map((textNode) => ({ id: textNode.id, x: textNode.x, y: textNode.y })),
+				pages: pages
+					.filter((selectedPage) => selectedPageIds.includes(selectedPage.id))
+					.map((selectedPage) => ({ id: selectedPage.id, x: selectedPage.x, y: selectedPage.y })),
 				hasDragged: false
 			};
 			return;
 		}
 
-		noteDrag = {
+		pageDrag = {
 			pointerId: event.pointerId,
-			nodeId: node.id,
+			pageId: page.id,
 			startScreen: { x: event.clientX, y: event.clientY },
-			startWorld: { x: node.x, y: node.y }
+			startWorld: { x: page.x, y: page.y }
 		};
 	}
 
-	function handleNotePointerMove(event: PointerEvent) {
+	function handlePagePointerMove(event: PointerEvent) {
 		stopCanvasDragEvent(event);
 
 		if (selectionDrag?.pointerId === event.pointerId) {
@@ -313,29 +303,29 @@ let activeTool = $state<Tool>('select');
 
 			if (selectionDrag.hasDragged) {
 				const currentWorld = getWorldPoint(event, surface);
-				moveSelectedNodes(
+				moveSelectedPages(
 					{
 						x: currentWorld.x - selectionDrag.startWorld.x,
 						y: currentWorld.y - selectionDrag.startWorld.y
 					},
-					selectionDrag.nodes
+					selectionDrag.pages
 				);
 			}
 			return;
 		}
 
-		if (!noteDrag || noteDrag.pointerId !== event.pointerId) return;
+		if (!pageDrag || pageDrag.pointerId !== event.pointerId) return;
 
-		const dx = (event.clientX - noteDrag.startScreen.x) / viewport.scale;
-		const dy = (event.clientY - noteDrag.startScreen.y) / viewport.scale;
+		const dx = (event.clientX - pageDrag.startScreen.x) / viewport.scale;
+		const dy = (event.clientY - pageDrag.startScreen.y) / viewport.scale;
 
-		moveTextNodeById(noteDrag.nodeId, {
-			x: noteDrag.startWorld.x + dx,
-			y: noteDrag.startWorld.y + dy
+		movePageById(pageDrag.pageId, {
+			x: pageDrag.startWorld.x + dx,
+			y: pageDrag.startWorld.y + dy
 		});
 	}
 
-	function finishNotePointer(event: PointerEvent) {
+	function finishPagePointer(event: PointerEvent) {
 		stopCanvasDragEvent(event);
 
 		if (selectionDrag?.pointerId === event.pointerId) {
@@ -349,7 +339,7 @@ let activeTool = $state<Tool>('select');
 			return;
 		}
 
-		if (!noteDrag || noteDrag.pointerId !== event.pointerId) return;
+		if (!pageDrag || pageDrag.pointerId !== event.pointerId) return;
 
 		const header = event.currentTarget as HTMLElement;
 
@@ -357,10 +347,10 @@ let activeTool = $state<Tool>('select');
 			header.releasePointerCapture(event.pointerId);
 		}
 
-		noteDrag = null;
+		pageDrag = null;
 	}
 
-	function cancelNotePointer(event: PointerEvent) {
+	function cancelPagePointer(event: PointerEvent) {
 		stopCanvasDragEvent(event);
 
 		if (selectionDrag?.pointerId === event.pointerId) {
@@ -374,7 +364,7 @@ let activeTool = $state<Tool>('select');
 			return;
 		}
 
-		if (!noteDrag || noteDrag.pointerId !== event.pointerId) return;
+		if (!pageDrag || pageDrag.pointerId !== event.pointerId) return;
 
 		const header = event.currentTarget as HTMLElement;
 
@@ -382,12 +372,12 @@ let activeTool = $state<Tool>('select');
 			header.releasePointerCapture(event.pointerId);
 		}
 
-		noteDrag = null;
+		pageDrag = null;
 	}
 
-	function handleTextareaPointerDown(event: PointerEvent, node: TextNode) {
+	function handleTextareaPointerDown(event: PointerEvent, page: Page) {
 		if (activeTool === 'select' && !isSpacePanning) {
-			selectOnly(node.id);
+			selectOnly(page.id);
 		}
 
 		stopCanvasEvent(event);
@@ -395,9 +385,20 @@ let activeTool = $state<Tool>('select');
 
 	function blurActiveTextarea() {
 		const activeElement = document.activeElement;
-		if (activeElement instanceof HTMLTextAreaElement && activeElement.classList.contains('text-node-body')) {
+		if (activeElement instanceof HTMLTextAreaElement && activeElement.classList.contains('page-body')) {
 			activeElement.blur();
+			pendingFocusPageId = null;
+			focusedPageId = null;
 		}
+	}
+
+	function handleTextareaKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			blurActiveTextarea();
+		}
+
+		event.stopPropagation();
 	}
 
 	function handlePointerDown(event: PointerEvent) {
@@ -435,7 +436,7 @@ let activeTool = $state<Tool>('select');
 			return;
 		}
 
-		if (activeTool === 'add-note' && !isSpacePanning) {
+		if (activeTool === 'add-page' && !isSpacePanning) {
 			surface.setPointerCapture(event.pointerId);
 			addClick = {
 				pointerId: event.pointerId,
@@ -500,7 +501,7 @@ let activeTool = $state<Tool>('select');
 			}
 
 			marqueeDrag.current = screenToWorld(point, viewport);
-			selectedNodeIds = findNodesInRect(textNodes, normalizeRect(marqueeDrag.start, marqueeDrag.current));
+			selectedPageIds = findPagesInRect(pages, normalizeRect(marqueeDrag.start, marqueeDrag.current));
 			marqueeDrag = null;
 			return;
 		}
@@ -510,8 +511,8 @@ let activeTool = $state<Tool>('select');
 				surface.releasePointerCapture(event.pointerId);
 			}
 
-			if (activeTool === 'add-note' && !isSpacePanning && !addClick.hasDragged) {
-				addTextNode(point);
+			if (activeTool === 'add-page' && !isSpacePanning && !addClick.hasDragged) {
+				addPage(point);
 			}
 
 			addClick = null;
@@ -608,11 +609,11 @@ let activeTool = $state<Tool>('select');
 				viewport = zoomAtPoint(viewport, center, viewport.scale * Math.exp(-KEYBOARD_PAN_STEP * ZOOM_SPEED));
 				break;
 			case 'Enter':
-				if (activeTool !== 'add-note' || isSpacePanning) {
+				if (activeTool !== 'add-page' || isSpacePanning) {
 					handled = false;
 					break;
 				}
-				addTextNode(center);
+				addPage(center);
 				break;
 			default:
 				handled = false;
@@ -636,7 +637,7 @@ let activeTool = $state<Tool>('select');
 		if (!nextTool) return;
 
 		activeTool = nextTool;
-		pendingConnectionNodeId = null;
+		pendingConnectionPageId = null;
 		event.preventDefault();
 	}
 
@@ -644,10 +645,8 @@ let activeTool = $state<Tool>('select');
 		switch (key.toLowerCase()) {
 			case 'v':
 				return 'select';
-			case 'n':
-				return 'add-note';
 			case 'p':
-				return 'pan';
+				return 'add-page';
 			case 'c':
 				return 'connect';
 			default:
@@ -669,21 +668,21 @@ let activeTool = $state<Tool>('select');
 		viewport = { ...INITIAL_VIEWPORT };
 	}
 
-	function clearTextNodes() {
-		textNodes = [];
+	function clearPages() {
+		pages = [];
 		flowEdges = [];
-		selectedNodeIds = [];
+		selectedPageIds = [];
 		selectionDrag = null;
 		marqueeDrag = null;
-		pendingFocusNodeId = null;
-		pendingConnectionNodeId = null;
+		pendingFocusPageId = null;
+		pendingConnectionPageId = null;
 	}
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} onkeyup={handleWindowKeyup} />
 
 <section class="canvas-view" aria-label="Prototype infinite canvas">
-	<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (custom canvas interaction surface) -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 	<div
 		class="surface"
 		role="application"
@@ -711,10 +710,10 @@ let activeTool = $state<Tool>('select');
 					</marker>
 				</defs>
 				{#each flowEdges as edge (edge.id)}
-					{@const fromNode = getNodeById(edge.fromNodeId)}
-					{@const toNode = getNodeById(edge.toNodeId)}
-					{#if fromNode && toNode}
-						<path class="flow-edge" d={getEdgePath(fromNode, toNode)} marker-end="url(#flow-arrow)" />
+					{@const fromPage = getPageById(edge.fromPageId)}
+					{@const toPage = getPageById(edge.toPageId)}
+					{#if fromPage && toPage}
+						<path class="flow-edge" d={getEdgePath(fromPage, toPage)} marker-end="url(#flow-arrow)" />
 					{/if}
 				{/each}
 			</svg>
@@ -727,106 +726,90 @@ let activeTool = $state<Tool>('select');
 					style:height={`${marqueeRect.height}px`}
 				></div>
 			{/if}
-			{#each textNodes as node (node.id)}
-				{@const screenPoint = worldToScreen(node, INITIAL_VIEWPORT)}
+			{#each pages as page (page.id)}
+				{@const screenPoint = worldToScreen(page, INITIAL_VIEWPORT)}
 				<div
-					class="text-node"
-					class:selected={isSelected(node.id)}
-					class:pending-source={pendingConnectionNodeId === node.id}
+					class="page-card"
+					class:selected={isSelected(page.id)}
+					class:pending-source={pendingConnectionPageId === page.id}
 					style:left={`${screenPoint.x}px`}
 					style:top={`${screenPoint.y}px`}
-					style:--note-width={`${NOTE_WIDTH}px`}
-					style:--note-min-height={`${NOTE_MIN_HEIGHT}px`}
+					style:--page-width={`${PAGE_WIDTH}px`}
+					style:--page-min-height={`${PAGE_MIN_HEIGHT}px`}
 				>
-					<div class="text-node-header-row">
+					<div class="page-header-row">
 						<button
 							type="button"
-							class="text-node-header"
-							aria-label={`Drag note ${node.id}`}
-							onpointerdown={(event) => handleNotePointerDown(event, node)}
-							onpointermove={handleNotePointerMove}
-							onpointerup={finishNotePointer}
-							onpointercancel={cancelNotePointer}
+							class="page-header"
+							aria-label={`Drag page ${page.id}`}
+							onpointerdown={(event) => handlePagePointerDown(event, page)}
+							onpointermove={handlePagePointerMove}
+							onpointerup={finishPagePointer}
+							onpointercancel={cancelPagePointer}
 							onclick={stopCanvasEvent}
 							onkeydown={stopCanvasEvent}
 						>
-							<span>Note {node.id}</span>
+							<span>{page.title}</span>
 						</button>
 						<button
 							type="button"
 							class="connector-button"
-							class:pending={pendingConnectionNodeId === node.id}
+							class:pending={pendingConnectionPageId === page.id}
 							aria-label={
-								pendingConnectionNodeId === node.id
-									? `Cancel flow from note ${node.id}`
-									: `Connect from note ${node.id}`
+								pendingConnectionPageId === page.id
+									? `Cancel flow from page ${page.id}`
+									: `Connect from page ${page.id}`
 							}
-							title="Connect note"
+							title="Connect page"
 							onpointerdown={handleConnectorPointerEvent}
 							onpointermove={handleConnectorPointerEvent}
 							onpointerup={handleConnectorPointerEvent}
 							onpointercancel={handleConnectorPointerEvent}
-							onclick={(event) => handleConnectorClick(event, node.id)}
+							onclick={(event) => handleConnectorClick(event, page.id)}
 							onkeydown={stopCanvasEvent}
 						>
 							<span aria-hidden="true">→</span>
 						</button>
 					</div>
 					<textarea
-						{@attach trackTextarea(node.id)}
-						class="text-node-body"
-						aria-label={`Note ${node.id}`}
-						placeholder="Type a note..."
-						bind:value={node.text}
-						onpointerdown={(event) => handleTextareaPointerDown(event, node)}
+						{@attach trackTextarea(page.id)}
+						class="page-body"
+						aria-label={`Page ${page.id}`}
+						placeholder="Describe this page..."
+						bind:value={page.description}
+						onpointerdown={(event) => handleTextareaPointerDown(event, page)}
 						onpointermove={stopCanvasEvent}
 						onpointerup={stopCanvasEvent}
 						onpointercancel={stopCanvasEvent}
-						onkeydown={stopCanvasEvent}
+						onkeydown={handleTextareaKeydown}
 					></textarea>
 				</div>
 			{/each}
 		</div>
 	</div>
 
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions (stats overlay stops events from reaching canvas interactions) -->
 	<div
 		class="stats-panel"
 		role="group"
 		aria-label="Canvas controls"
-		onclick={handleToolbarEvent}
-		onkeydown={handleToolbarEvent}
-		onpointerdown={handleToolbarEvent}
-		onpointermove={handleToolbarEvent}
-		onpointerup={handleToolbarEvent}
-		onpointercancel={handleToolbarEvent}
-		onwheel={handleToolbarEvent}
 	>
 		<div class="stat">
-			<span>Notes</span>
-			<strong>{textNodes.length}</strong>
+			<span>Pages</span>
+			<strong>{pages.length}</strong>
 		</div>
 		<div class="stat">
 			<span>Zoom</span>
 			<strong>{zoomPercent}%</strong>
 		</div>
 		<button type="button" onclick={resetView}>Reset view</button>
-		<button type="button" onclick={clearTextNodes} disabled={textNodes.length === 0}>Clear notes</button>
+		<button type="button" onclick={clearPages} disabled={pages.length === 0}>Clear pages</button>
 	</div>
 
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions (toolbar overlay stops events from reaching canvas interactions) -->
 	<div
 		class="tool-dock"
 		role="toolbar"
 		tabindex="-1"
 		aria-label="Canvas tools"
-		onclick={handleToolbarEvent}
-		onkeydown={handleToolbarEvent}
-		onpointerdown={handleToolbarEvent}
-		onpointermove={handleToolbarEvent}
-		onpointerup={handleToolbarEvent}
-		onpointercancel={handleToolbarEvent}
-		onwheel={handleToolbarEvent}
 	>
 		<button
 			type="button"
@@ -838,11 +821,11 @@ let activeTool = $state<Tool>('select');
 		</button>
 		<button
 			type="button"
-			class:active={activeTool === 'add-note'}
-			aria-pressed={activeTool === 'add-note'}
-			onclick={() => (activeTool = 'add-note')}
+			class:active={activeTool === 'add-page'}
+			aria-pressed={activeTool === 'add-page'}
+			onclick={() => (activeTool = 'add-page')}
 		>
-			Add note
+			Add page
 		</button>
 	</div>
 </section>
@@ -914,10 +897,10 @@ let activeTool = $state<Tool>('select');
 		pointer-events: none;
 	}
 
-	.text-node {
+	.page-card {
 		position: absolute;
 		z-index: 2;
-		width: var(--note-width, 180px);
+		width: var(--page-width, 180px);
 		transform: translate(-50%, -50%);
 		border: 1px solid rgba(148, 163, 184, 0.48);
 		border-radius: 12px;
@@ -926,13 +909,13 @@ let activeTool = $state<Tool>('select');
 		box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
 	}
 
-	.text-node.selected {
+	.page-card.selected {
 		border-color: rgba(29, 78, 216, 0.5);
 		background: #dbeafe;
 		box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
 	}
 
-	.text-node-header-row {
+	.page-header-row {
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -942,11 +925,11 @@ let activeTool = $state<Tool>('select');
 		background: rgba(241, 245, 249, 0.92);
 	}
 
-	.text-node.selected .text-node-header-row {
+	.page-card.selected .page-header-row {
 		background: rgba(147, 197, 253, 0.8);
 	}
 
-	.text-node-header {
+	.page-header {
 		display: flex;
 		flex: 1 1 auto;
 		align-items: center;
@@ -984,25 +967,25 @@ let activeTool = $state<Tool>('select');
 	}
 
 	.connector-button.pending,
-	.text-node.pending-source .connector-button {
+	.page-card.pending-source .connector-button {
 		border-color: #1d4ed8;
 		color: #ffffff;
 		background: #2563eb;
 	}
 
-	.text-node-header:active {
+	.page-header:active {
 		cursor: grabbing;
 	}
 
-	.text-node-header:focus-visible {
+	.page-header:focus-visible {
 		outline: 2px solid rgba(37, 99, 235, 0.55);
 		outline-offset: -2px;
 	}
 
-	.text-node-body {
+	.page-body {
 		display: block;
 		width: 100%;
-		min-height: var(--note-min-height, 96px);
+		min-height: var(--page-min-height, 96px);
 		resize: both;
 		border: 0;
 		padding: 12px;
@@ -1014,21 +997,21 @@ let activeTool = $state<Tool>('select');
 		user-select: text;
 	}
 
-	.text-node:focus-within {
+	.page-card:focus-within {
 		border-color: #2563eb;
 		box-shadow:
 			0 0 0 2px rgba(37, 99, 235, 0.28),
 			0 10px 24px rgba(37, 99, 235, 0.28);
 	}
 
-	.text-node.pending-source {
+	.page-card.pending-source {
 		border-color: #1d4ed8;
 		box-shadow:
 			0 0 0 3px rgba(37, 99, 235, 0.3),
 			0 10px 24px rgba(37, 99, 235, 0.28);
 	}
 
-	.text-node-body:focus {
+	.page-body:focus {
 		outline: none;
 	}
 

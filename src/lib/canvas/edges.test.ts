@@ -2,11 +2,11 @@ import { describe, expect, test } from 'vitest';
 import { createFlowEdge, hasFlowEdge } from './edges';
 
 describe('canvas edges', () => {
-	test('creates a directed edge between two notes', () => {
+	test('creates a directed edge between two pages', () => {
 		expect(createFlowEdge(7, 1, 2)).toEqual({
 			id: 7,
-			fromNodeId: 1,
-			toNodeId: 2
+			fromPageId: 1,
+			toPageId: 2
 		});
 	});
 
