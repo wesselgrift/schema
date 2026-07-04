@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { Button } from '$lib/components/ui/button';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { Search01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
 	import {
 		screenToWorld,
 		worldToScreen,
@@ -6,6 +10,7 @@
 		type Point,
 		type Viewport
 	} from './viewport';
+	import { isTextEntryTarget } from './keyboard';
 	import { addPageElement, createPage, movePage, removePagesById, type Page } from './pages';
 	import { findPagesInRect, normalizeRect, type SelectionRect } from './selection';
 
@@ -50,7 +55,7 @@
 		hasDragged: boolean;
 	};
 
-	type Tool = 'select' | 'add-page' | 'pan';
+	type Tool = 'select' | 'add-page';
 
 	const GRID_SIZE = 32;
 	const PAGE_WIDTH = 180;
@@ -81,7 +86,7 @@
 	let gridSize = $derived(GRID_SIZE * viewport.scale);
 	let gridOffsetX = $derived(wrap(viewport.x, gridSize));
 	let gridOffsetY = $derived(wrap(viewport.y, gridSize));
-	let isPanActive = $derived(activeTool === 'pan' || isSpacePanning);
+	let isPanActive = $derived(isSpacePanning);
 	let marqueeRect: SelectionRect | null = $derived(
 		marqueeDrag?.hasDragged ? normalizeRect(marqueeDrag.start, marqueeDrag.current) : null
 	);
@@ -144,12 +149,6 @@
 		if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * 800;
 
 		return delta;
-	}
-
-	function isEditableTarget(target: EventTarget | null): boolean {
-		if (!(target instanceof HTMLElement)) return false;
-
-		return Boolean(target.closest('textarea, input, select, button, [contenteditable]'));
 	}
 
 	function stopCanvasEvent(event: Event) {
@@ -619,7 +618,7 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent) {
-		if (isEditableTarget(event.target) || event.repeat) return;
+		if (isTextEntryTarget(event.target) || event.repeat) return;
 
 		if (event.key === 'Backspace' || event.key === 'Delete') {
 			if (deleteSelectedPages()) {
@@ -775,40 +774,29 @@
 		role="group"
 		aria-label="Canvas controls"
 	>
-		<div class="stat">
-			<span>Pages</span>
-			<strong>{pages.length}</strong>
-		</div>
-		<div class="stat">
-			<span>Zoom</span>
-			<strong>{zoomPercent}%</strong>
-		</div>
-		<button type="button" onclick={resetView}>Reset view</button>
-		<button type="button" onclick={clearPages} disabled={pages.length === 0}>Clear pages</button>
+		<Button type="button" size="sm" variant="outline" onclick={clearPages} disabled={pages.length === 0}>
+			Clear pages
+		</Button>
 	</div>
 
-	<div
-		class="tool-dock"
-		role="toolbar"
-		tabindex="-1"
-		aria-label="Canvas tools"
-	>
-		<button
-			type="button"
-			class:active={activeTool === 'select'}
-			aria-pressed={activeTool === 'select'}
-			onclick={() => (activeTool = 'select')}
-		>
-			Select
+	<div class="bottom-controls">
+		<div class="control-pill text-muted-foreground" aria-live="polite" aria-label="Zoom {zoomPercent}%">
+			<HugeiconsIcon icon={Search01Icon} size={14} strokeWidth={2} aria-hidden="true" />
+			<span class="text-xs font-medium leading-none">{zoomPercent}%</span>
+		</div>
+		<button type="button" class="control-pill text-muted-foreground" onclick={resetView}>
+			<HugeiconsIcon icon={Refresh01Icon} size={14} strokeWidth={2} aria-hidden="true" />
+			<span class="text-xs font-medium leading-none">Reset view</span>
 		</button>
-		<button
-			type="button"
-			class:active={activeTool === 'add-page'}
-			aria-pressed={activeTool === 'add-page'}
-			onclick={() => (activeTool = 'add-page')}
-		>
-			Add page
-		</button>
+	</div>
+
+	<div class="tool-dock">
+		<Tabs.Root bind:value={activeTool} class="gap-0">
+			<Tabs.List aria-label="Canvas tools" class="h-7 p-0.5">
+				<Tabs.Trigger value="select" class="px-2 py-0">Select</Tabs.Trigger>
+				<Tabs.Trigger value="add-page" class="px-2 py-0">Add page</Tabs.Trigger>
+			</Tabs.List>
+		</Tabs.Root>
 	</div>
 </section>
 
@@ -944,9 +932,25 @@
 
 	.add-element-button {
 		justify-self: start;
+		border: 1px solid var(--input);
+		border-radius: var(--radius-md);
 		padding: 5px 8px;
+		color: var(--foreground);
+		background: var(--card);
 		font-size: 0.78rem;
 		line-height: 1.1;
+		cursor: pointer;
+	}
+
+	.add-element-button:hover:not(:disabled),
+	.add-element-button:focus-visible {
+		border-color: var(--primary);
+		color: var(--accent-foreground);
+	}
+
+	.add-element-button:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
 	}
 
 	.page-elements {
@@ -997,58 +1001,44 @@
 		z-index: 1;
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 8px;
+		padding: 4px;
 		border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-		border-radius: var(--radius-2xl);
+		border-radius: calc(var(--radius-lg) + 4px);
 		background: color-mix(in srgb, var(--popover) 95%, var(--card));
 		box-shadow: var(--shadow-popover);
 		transform: translateX(-50%);
 		backdrop-filter: blur(10px);
+		overflow: hidden;
 	}
 
-	.stat {
-		display: grid;
-		gap: 1px;
-		min-width: 72px;
-		padding: 4px 8px;
+	.bottom-controls {
+		position: absolute;
+		bottom: 24px;
+		left: 16px;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		gap: 8px;
 	}
 
-	.stat span {
-		color: var(--muted-foreground);
-		font-size: 0.72rem;
-		line-height: 1;
+	.control-pill {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 5px 8px;
+		border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, var(--popover) 95%, var(--card));
+		box-shadow: var(--shadow-popover);
+		backdrop-filter: blur(10px);
 	}
 
-	.stat strong {
-		color: var(--card-foreground);
-		font-size: 0.92rem;
-		line-height: 1.2;
-	}
-
-	button {
-		border: 1px solid var(--input);
-		border-radius: var(--radius-md);
-		padding: 7px 10px;
-		color: var(--foreground);
-		background: var(--card);
+	button.control-pill {
 		cursor: pointer;
 	}
 
-	button:hover:not(:disabled),
-	button:focus-visible {
-		border-color: var(--primary);
-		color: var(--accent-foreground);
+	button.control-pill:hover {
+		color: var(--foreground);
 	}
 
-	button.active {
-		border-color: var(--primary);
-		color: var(--accent-foreground);
-		background: var(--accent);
-	}
-
-	button:disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-	}
 </style>
