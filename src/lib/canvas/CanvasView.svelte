@@ -277,6 +277,10 @@
 		);
 	}
 
+	function isPageTarget(target: EventTarget | null): boolean {
+		return target instanceof Element && Boolean(target.closest('.page-card'));
+	}
+
 	function trackSurface(node: HTMLElement) {
 		surfaceElement = node;
 
@@ -311,6 +315,7 @@
 
 		pages.push(page);
 		pendingFocusPageId = page.id;
+		activeTool = 'select';
 	}
 
 	function movePageById(pageId: number, point: Point) {
@@ -557,6 +562,10 @@
 
 		if (activeTool === 'select') {
 			const worldPoint = screenToWorld(point, viewport);
+
+			if (!isPageTarget(event.target)) {
+				selectedPageIds = [];
+			}
 
 			surface.setPointerCapture(event.pointerId);
 			marqueeDrag = {
@@ -852,7 +861,7 @@
 				>
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
-						class="page-header-row"
+						class="page-header-row flex w-full min-h-10 items-center gap-0.5 bg-muted/50 px-1 cursor-grab active:cursor-grabbing touch-none select-none"
 						onpointerdown={(event) => handlePagePointerDown(event, page)}
 						onpointermove={handlePagePointerMove}
 						onpointerup={finishPagePointer}
@@ -867,9 +876,9 @@
 									<Button
 										{...props}
 										type="button"
-										variant="ghost"
-										size="icon-sm"
-										class="page-icon-trigger"
+										variant="outline"
+										size="icon-lg"
+										class="page-icon-trigger shrink-0 border-none"
 										aria-label={`Change icon for ${page.title || `page ${page.id}`}`}
 										onpointerdown={stopCanvasEvent}
 										onpointermove={stopCanvasEvent}
@@ -931,7 +940,7 @@
 						</Popover.Root>
 						<input
 							{@attach trackTitleInput(page.id)}
-							class="page-title-input"
+							class="page-title-input flex-[0_1_auto] min-w-0 w-auto max-w-full border-0 rounded-sm h-8 p-0 text-secondary-foreground bg-transparent text-[0.78rem] font-medium leading-none cursor-text select-text focus:outline-none"
 							aria-label={`Page ${page.id} title`}
 							size={Math.max(page.title.length, 4)}
 							bind:value={page.title}
@@ -1104,29 +1113,8 @@
 		box-shadow: var(--shadow-card-active);
 	}
 
-	.page-header-row {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		width: 100%;
-		min-height: 28px;
-		padding: 0 10px;
-		background: var(--muted);
-		cursor: grab;
-		touch-action: none;
-		user-select: none;
-	}
-
 	.page-card.selected .page-header-row {
 		background: color-mix(in srgb, var(--primary) 35%, var(--card));
-	}
-
-	.page-header-row:active {
-		cursor: grabbing;
-	}
-
-	:global(.page-icon-trigger) {
-		flex: 0 0 auto;
 	}
 
 	:global(.page-icon-picker) {
@@ -1152,28 +1140,6 @@
 
 	:global(.icon-picker-command) {
 		border-radius: var(--radius-md);
-	}
-
-	.page-title-input {
-		flex: 0 1 auto;
-		min-width: 0;
-		width: auto;
-		max-width: 100%;
-		border: 0;
-		border-radius: var(--radius-sm);
-		padding: 4px 0;
-		color: var(--secondary-foreground);
-		background: transparent;
-		font: inherit;
-		font-size: 0.78rem;
-		font-weight: 500;
-		line-height: 1;
-		cursor: text;
-		user-select: text;
-	}
-
-	.page-title-input:focus {
-		outline: none;
 	}
 
 	.page-content {
