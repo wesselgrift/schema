@@ -513,16 +513,17 @@
 		stopCanvasEvent(event);
 	}
 
-	function blurActiveTitleInput() {
+	function blurActivePageControl() {
 		const activeElement = document.activeElement;
-		if (
-			activeElement instanceof HTMLInputElement &&
-			activeElement.classList.contains('page-title-input')
-		) {
-			activeElement.blur();
+
+		if (!(activeElement instanceof HTMLElement) || !activeElement.closest('.page-card')) return;
+
+		if (activeElement.classList.contains('page-title-input')) {
 			pendingFocusPageId = null;
 			focusedPageId = null;
 		}
+
+		activeElement.blur();
 	}
 
 	function returnFocusToCanvas() {
@@ -532,7 +533,7 @@
 	function handleTitleInputKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
-			blurActiveTitleInput();
+			blurActivePageControl();
 			returnFocusToCanvas();
 		}
 
@@ -546,7 +547,7 @@
 		const point = getLocalPoint(event, surface);
 
 		event.preventDefault();
-		blurActiveTitleInput();
+		blurActivePageControl();
 
 		if (isPanActive) {
 			surface.setPointerCapture(event.pointerId);
