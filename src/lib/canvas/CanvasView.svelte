@@ -836,7 +836,7 @@
 		width: 100%;
 		height: 100%;
 		overflow: hidden;
-		background: #f8fafc;
+		background: var(--background);
 	}
 
 	.surface {
@@ -844,7 +844,7 @@
 		inset: 0;
 		touch-action: none;
 		user-select: none;
-		background-image: radial-gradient(circle, rgba(59, 130, 246, 0.34) 1px, transparent 1.25px);
+		background-image: radial-gradient(circle, var(--canvas-grid) 1px, transparent 1.25px);
 		background-position: var(--grid-offset-x) var(--grid-offset-y);
 		background-size: var(--grid-size) var(--grid-size);
 	}
@@ -854,7 +854,7 @@
 	}
 
 	.surface:focus-visible {
-		outline: 2px solid #2563eb;
+		outline: 2px solid var(--primary);
 		outline-offset: -4px;
 	}
 
@@ -877,23 +877,23 @@
 
 	.flow-edge {
 		fill: none;
-		stroke: #2563eb;
+		stroke: var(--primary);
 		stroke-linecap: round;
 		stroke-width: 2.5;
 		opacity: 0.72;
 	}
 
 	.flow-arrow-head {
-		fill: #2563eb;
+		fill: var(--primary);
 		opacity: 0.72;
 	}
 
 	.selection-marquee {
 		position: absolute;
 		z-index: 1;
-		border: 1px solid rgba(37, 99, 235, 0.7);
-		border-radius: 6px;
-		background: rgba(59, 130, 246, 0.18);
+		border: 1px solid var(--selection-border);
+		border-radius: var(--radius-sm);
+		background: var(--selection);
 		pointer-events: none;
 	}
 
@@ -902,17 +902,17 @@
 		z-index: 2;
 		width: var(--page-width, 180px);
 		transform: translate(-50%, -50%);
-		border: 1px solid rgba(148, 163, 184, 0.48);
-		border-radius: 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
 		overflow: hidden;
-		background: #ffffff;
-		box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+		background: var(--card);
+		box-shadow: var(--shadow-card);
 	}
 
 	.page-card.selected {
-		border-color: rgba(29, 78, 216, 0.5);
-		background: #dbeafe;
-		box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+		border-color: color-mix(in srgb, var(--accent-foreground) 50%, transparent);
+		background: var(--accent);
+		box-shadow: var(--shadow-card-active);
 	}
 
 	.page-header-row {
@@ -922,11 +922,11 @@
 		width: 100%;
 		min-height: 28px;
 		padding: 0 8px 0 0;
-		background: rgba(241, 245, 249, 0.92);
+		background: var(--muted);
 	}
 
 	.page-card.selected .page-header-row {
-		background: rgba(147, 197, 253, 0.8);
+		background: color-mix(in srgb, var(--primary) 35%, var(--card));
 	}
 
 	.page-header {
@@ -938,7 +938,7 @@
 		border: 0;
 		border-radius: 0;
 		padding: 0 10px;
-		color: #1e3a8a;
+		color: var(--secondary-foreground);
 		background: transparent;
 		cursor: grab;
 		font-size: 0.78rem;
@@ -954,11 +954,11 @@
 		place-items: center;
 		width: 20px;
 		height: 20px;
-		border-color: rgba(37, 99, 235, 0.4);
+		border-color: color-mix(in srgb, var(--primary) 40%, transparent);
 		border-radius: 999px;
 		padding: 0;
-		color: #1d4ed8;
-		background: rgba(255, 255, 255, 0.86);
+		color: var(--accent-foreground);
+		background: color-mix(in srgb, var(--card) 86%, transparent);
 		cursor: crosshair;
 		font-size: 0.78rem;
 		font-weight: 800;
@@ -968,9 +968,9 @@
 
 	.connector-button.pending,
 	.page-card.pending-source .connector-button {
-		border-color: #1d4ed8;
-		color: #ffffff;
-		background: #2563eb;
+		border-color: var(--accent-foreground);
+		color: var(--primary-foreground);
+		background: var(--primary);
 	}
 
 	.page-header:active {
@@ -978,7 +978,7 @@
 	}
 
 	.page-header:focus-visible {
-		outline: 2px solid rgba(37, 99, 235, 0.55);
+		outline: 2px solid var(--ring);
 		outline-offset: -2px;
 	}
 
@@ -989,7 +989,7 @@
 		resize: both;
 		border: 0;
 		padding: 12px;
-		color: #0f172a;
+		color: var(--card-foreground);
 		background: transparent;
 		cursor: text;
 		font: inherit;
@@ -998,17 +998,17 @@
 	}
 
 	.page-card:focus-within {
-		border-color: #2563eb;
+		border-color: var(--primary);
 		box-shadow:
-			0 0 0 2px rgba(37, 99, 235, 0.28),
-			0 10px 24px rgba(37, 99, 235, 0.28);
+			0 0 0 2px color-mix(in srgb, var(--primary) 28%, transparent),
+			var(--shadow-card-active);
 	}
 
 	.page-card.pending-source {
-		border-color: #1d4ed8;
+		border-color: var(--accent-foreground);
 		box-shadow:
-			0 0 0 3px rgba(37, 99, 235, 0.3),
-			0 10px 24px rgba(37, 99, 235, 0.28);
+			0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent),
+			var(--shadow-card-active);
 	}
 
 	.page-body:focus {
@@ -1024,10 +1024,10 @@
 		align-items: center;
 		gap: 8px;
 		padding: 8px;
-		border: 1px solid rgba(148, 163, 184, 0.36);
-		border-radius: 14px;
-		background: rgba(255, 255, 255, 0.88);
-		box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+		border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+		border-radius: var(--radius-xl);
+		background: var(--popover);
+		box-shadow: var(--shadow-popover);
 		backdrop-filter: blur(10px);
 	}
 
@@ -1040,10 +1040,10 @@
 		align-items: center;
 		gap: 6px;
 		padding: 8px;
-		border: 1px solid rgba(148, 163, 184, 0.36);
-		border-radius: 16px;
-		background: rgba(255, 255, 255, 0.9);
-		box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+		border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+		border-radius: var(--radius-2xl);
+		background: color-mix(in srgb, var(--popover) 95%, var(--card));
+		box-shadow: var(--shadow-popover);
 		transform: translateX(-50%);
 		backdrop-filter: blur(10px);
 	}
@@ -1056,36 +1056,36 @@
 	}
 
 	.stat span {
-		color: #64748b;
+		color: var(--muted-foreground);
 		font-size: 0.72rem;
 		line-height: 1;
 	}
 
 	.stat strong {
-		color: #0f172a;
+		color: var(--card-foreground);
 		font-size: 0.92rem;
 		line-height: 1.2;
 	}
 
 	button {
-		border: 1px solid #cbd5e1;
-		border-radius: 10px;
+		border: 1px solid var(--input);
+		border-radius: var(--radius-md);
 		padding: 7px 10px;
-		color: #172033;
-		background: #ffffff;
+		color: var(--foreground);
+		background: var(--card);
 		cursor: pointer;
 	}
 
 	button:hover:not(:disabled),
 	button:focus-visible {
-		border-color: #2563eb;
-		color: #1d4ed8;
+		border-color: var(--primary);
+		color: var(--accent-foreground);
 	}
 
 	button.active {
-		border-color: #2563eb;
-		color: #1d4ed8;
-		background: #dbeafe;
+		border-color: var(--primary);
+		color: var(--accent-foreground);
+		background: var(--accent);
 	}
 
 	button:disabled {
