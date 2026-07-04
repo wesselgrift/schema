@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { createPage, movePage } from './pages';
+import { createPage, movePage, removePagesById } from './pages';
 
 describe('canvas pages', () => {
 	test('creates a page at the requested world position', () => {
@@ -28,5 +28,17 @@ describe('canvas pages', () => {
 			title: 'Checkout',
 			description: 'Keep me'
 		});
+	});
+
+	test('removes pages with matching ids', () => {
+		const pages = [
+			{ id: 1, x: 0, y: 0, title: 'Home', description: '' },
+			{ id: 2, x: 100, y: 0, title: 'Search', description: '' },
+			{ id: 3, x: 200, y: 0, title: 'Checkout', description: '' }
+		];
+
+		expect(removePagesById(pages, [1, 3])).toEqual([
+			{ id: 2, x: 100, y: 0, title: 'Search', description: '' }
+		]);
 	});
 });

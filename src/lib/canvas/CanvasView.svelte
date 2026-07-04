@@ -6,7 +6,7 @@
 		type Point,
 		type Viewport
 	} from './viewport';
-	import { createPage, movePage, type Page } from './pages';
+	import { createPage, movePage, removePagesById, type Page } from './pages';
 	import { findPagesInRect, normalizeRect, type SelectionRect } from './selection';
 
 	type DragState = {
@@ -195,6 +195,19 @@
 
 	function selectOnly(pageId: number) {
 		selectedPageIds = [pageId];
+	}
+
+	function deleteSelectedPages() {
+		if (selectedPageIds.length === 0) return false;
+
+		pages = removePagesById(pages, selectedPageIds);
+		selectedPageIds = [];
+		selectionDrag = null;
+		marqueeDrag = null;
+		pendingFocusPageId = null;
+		focusedPageId = null;
+
+		return true;
 	}
 
 	function moveSelectedPages(delta: Point, starts: SelectionPageStart[]) {
@@ -581,6 +594,13 @@
 
 	function handleWindowKeydown(event: KeyboardEvent) {
 		if (isEditableTarget(event.target) || event.repeat) return;
+
+		if (event.key === 'Backspace' || event.key === 'Delete') {
+			if (deleteSelectedPages()) {
+				event.preventDefault();
+			}
+			return;
+		}
 
 		if (event.key === ' ') {
 			isSpacePanning = true;

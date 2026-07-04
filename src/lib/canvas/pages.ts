@@ -23,3 +23,8 @@ export function movePage(page: Page, point: Point): Page {
 		y: point.y
 	};
 }
+
+export function removePagesById(pages: Page[], pageIds: number[]): Page[] {
+	const idsToRemove = new Set(pageIds);
+	return pages.filter((page) => !idsToRemove.has(page.id));
+}
