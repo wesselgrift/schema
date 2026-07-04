@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { Search01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
+	import { Cursor02Icon, FileAddIcon, Search01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
 	import {
 		screenToWorld,
 		worldToScreen,
@@ -793,8 +793,24 @@
 	<div class="tool-dock">
 		<Tabs.Root bind:value={activeTool} class="gap-0">
 			<Tabs.List aria-label="Canvas tools" class="h-7 p-0.5">
-				<Tabs.Trigger value="select" class="px-2 py-0">Select</Tabs.Trigger>
-				<Tabs.Trigger value="add-page" class="px-2 py-0">Add page</Tabs.Trigger>
+				<Tabs.Trigger value="select" class="px-2 py-0">
+					<HugeiconsIcon
+						icon={Cursor02Icon}
+						data-icon="inline-start"
+						strokeWidth={2}
+						aria-hidden="true"
+					/>
+					Select
+				</Tabs.Trigger>
+				<Tabs.Trigger value="add-page" class="px-2 py-0">
+					<HugeiconsIcon
+						icon={FileAddIcon}
+						data-icon="inline-start"
+						strokeWidth={2}
+						aria-hidden="true"
+					/>
+					Add page
+				</Tabs.Trigger>
 			</Tabs.List>
 		</Tabs.Root>
 	</div>
