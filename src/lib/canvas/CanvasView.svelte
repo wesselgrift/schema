@@ -6,7 +6,7 @@
 		type Point,
 		type Viewport
 	} from './viewport';
-	import { createPage, movePage, removePagesById, type Page } from './pages';
+	import { addPageElement, createPage, movePage, removePagesById, type Page } from './pages';
 	import { findPagesInRect, normalizeRect, type SelectionRect } from './selection';
 
 	type DragState = {
@@ -73,7 +73,9 @@
 	let addClick: AddClickState | null = null;
 	let pageDrag: PageDragState | null = null;
 	let focusedPageId: number | null = null;
-	const textareaElements: Record<number, HTMLTextAreaElement | undefined> = {};
+	let nextElementId = 1;
+	let surfaceElement: HTMLElement | undefined;
+	const titleInputElements: Record<number, HTMLInputElement | undefined> = {};
 
 	let zoomPercent = $derived(Math.round(viewport.scale * 100));
 	let gridSize = $derived(GRID_SIZE * viewport.scale);
@@ -159,9 +161,19 @@
 		event.stopPropagation();
 	}
 
-	function trackTextarea(pageId: number) {
-		return (node: HTMLTextAreaElement) => {
-			textareaElements[pageId] = node;
+	function trackSurface(node: HTMLElement) {
+		surfaceElement = node;
+
+		return () => {
+			if (surfaceElement === node) {
+				surfaceElement = undefined;
+			}
+		};
+	}
+
+	function trackTitleInput(pageId: number) {
+		return (node: HTMLInputElement) => {
+			titleInputElements[pageId] = node;
 
 			if (pendingFocusPageId === pageId && focusedPageId !== pageId) {
 				node.focus();
@@ -170,8 +182,8 @@
 			}
 
 			return () => {
-				if (textareaElements[pageId] === node) {
-					delete textareaElements[pageId];
+				if (titleInputElements[pageId] === node) {
+					delete titleInputElements[pageId];
 				}
 			};
 		};
@@ -217,6 +229,12 @@
 			const start = startPositions.get(page.id);
 			return start ? movePage(page, { x: start.x + delta.x, y: start.y + delta.y }) : page;
 		});
+	}
+
+	function addElementToPage(pageId: number) {
+		pages = pages.map((page) =>
+			page.id === pageId ? addPageElement(page, nextElementId++) : page
+		);
 	}
 
 	function handlePagePointerDown(event: PointerEvent, page: Page) {
@@ -343,7 +361,7 @@
 		pageDrag = null;
 	}
 
-	function handleTextareaPointerDown(event: PointerEvent, page: Page) {
+	function handlePageControlPointerDown(event: PointerEvent, page: Page) {
 		if (activeTool === 'select' && !isSpacePanning) {
 			selectOnly(page.id);
 		}
@@ -351,19 +369,27 @@
 		stopCanvasEvent(event);
 	}
 
-	function blurActiveTextarea() {
+	function blurActiveTitleInput() {
 		const activeElement = document.activeElement;
-		if (activeElement instanceof HTMLTextAreaElement && activeElement.classList.contains('page-body')) {
+		if (
+			activeElement instanceof HTMLInputElement &&
+			activeElement.classList.contains('page-title-input')
+		) {
 			activeElement.blur();
 			pendingFocusPageId = null;
 			focusedPageId = null;
 		}
 	}
 
-	function handleTextareaKeydown(event: KeyboardEvent) {
+	function returnFocusToCanvas() {
+		surfaceElement?.focus();
+	}
+
+	function handleTitleInputKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
-			blurActiveTextarea();
+			blurActiveTitleInput();
+			returnFocusToCanvas();
 		}
 
 		event.stopPropagation();
@@ -376,7 +402,7 @@
 		const point = getLocalPoint(event, surface);
 
 		event.preventDefault();
-		blurActiveTextarea();
+		blurActiveTitleInput();
 
 		if (isPanActive) {
 			surface.setPointerCapture(event.pointerId);
@@ -646,6 +672,7 @@
 		selectionDrag = null;
 		marqueeDrag = null;
 		pendingFocusPageId = null;
+		focusedPageId = null;
 	}
 </script>
 
@@ -654,6 +681,7 @@
 <section class="canvas-view" aria-label="Prototype infinite canvas">
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 	<div
+		{@attach trackSurface}
 		class="surface"
 		role="application"
 		tabindex="0"
@@ -692,33 +720,51 @@
 					style:--page-width={`${PAGE_WIDTH}px`}
 					style:--page-min-height={`${PAGE_MIN_HEIGHT}px`}
 				>
-					<div class="page-header-row">
-						<button
-							type="button"
-							class="page-header"
+					<div
+						class="page-header-row"
+					>
+						<div
+							class="page-drag-handle"
+							role="button"
+							tabindex="0"
 							aria-label={`Drag page ${page.id}`}
 							onpointerdown={(event) => handlePagePointerDown(event, page)}
 							onpointermove={handlePagePointerMove}
 							onpointerup={finishPagePointer}
 							onpointercancel={cancelPagePointer}
-							onclick={stopCanvasEvent}
+							onkeydown={stopCanvasEvent}
+						></div>
+						<input
+							{@attach trackTitleInput(page.id)}
+							class="page-title-input"
+							aria-label={`Page ${page.id} title`}
+							bind:value={page.title}
+							onpointerdown={(event) => handlePageControlPointerDown(event, page)}
+							onpointermove={stopCanvasEvent}
+							onpointerup={stopCanvasEvent}
+							onpointercancel={stopCanvasEvent}
+							onkeydown={handleTitleInputKeydown}
+						/>
+					</div>
+					<div class="page-content">
+						<button
+							type="button"
+							class="add-element-button"
+							onclick={() => addElementToPage(page.id)}
+							onpointerdown={(event) => handlePageControlPointerDown(event, page)}
+							onpointermove={stopCanvasEvent}
+							onpointerup={stopCanvasEvent}
+							onpointercancel={stopCanvasEvent}
 							onkeydown={stopCanvasEvent}
 						>
-							<span>{page.title}</span>
+							Add element
 						</button>
+						<ul class="page-elements" aria-label={`Elements on ${page.title || `page ${page.id}`}`}>
+							{#each page.elements as element (element.id)}
+								<li>{element.title}</li>
+							{/each}
+						</ul>
 					</div>
-					<textarea
-						{@attach trackTextarea(page.id)}
-						class="page-body"
-						aria-label={`Page ${page.id}`}
-						placeholder="Describe this page..."
-						bind:value={page.description}
-						onpointerdown={(event) => handleTextareaPointerDown(event, page)}
-						onpointermove={stopCanvasEvent}
-						onpointerup={stopCanvasEvent}
-						onpointercancel={stopCanvasEvent}
-						onkeydown={handleTextareaKeydown}
-					></textarea>
 				</div>
 			{/each}
 		</div>
@@ -789,9 +835,8 @@
 		cursor: grabbing;
 	}
 
-	.surface:focus-visible {
-		outline: 2px solid var(--primary);
-		outline-offset: -4px;
+	.surface:focus {
+		outline: none;
 	}
 
 	.world {
@@ -831,9 +876,10 @@
 	.page-header-row {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 6px;
 		width: 100%;
 		min-height: 28px;
+		padding: 0 10px;
 		background: var(--muted);
 	}
 
@@ -841,47 +887,84 @@
 		background: color-mix(in srgb, var(--primary) 35%, var(--card));
 	}
 
-	.page-header {
+	.page-drag-handle {
 		display: flex;
-		flex: 1 1 auto;
-		align-items: center;
-		align-self: stretch;
-		min-width: 0;
-		border: 0;
-		border-radius: 0;
-		padding: 0 10px;
-		color: var(--secondary-foreground);
-		background: transparent;
+		flex: 0 0 auto;
+		width: 10px;
+		height: 16px;
+		border-radius: var(--radius-sm);
+		background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1.5px);
+		background-position: 0 0;
+		background-size: 4px 4px;
 		cursor: grab;
-		font-size: 0.78rem;
-		font-weight: 700;
-		line-height: 1;
+		opacity: 0.7;
 		touch-action: none;
 		user-select: none;
 	}
 
-	.page-header:active {
+	.page-drag-handle:active {
 		cursor: grabbing;
 	}
 
-	.page-header:focus-visible {
+	.page-drag-handle:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: -2px;
 	}
 
-	.page-body {
-		display: block;
+	.page-title-input {
+		flex: 1 1 auto;
+		min-width: 0;
 		width: 100%;
-		min-height: var(--page-min-height, 96px);
-		resize: both;
 		border: 0;
+		border-radius: var(--radius-sm);
+		padding: 4px 0;
+		color: var(--secondary-foreground);
+		background: transparent;
+		font: inherit;
+		font-size: 0.78rem;
+		font-weight: 700;
+		line-height: 1;
+		cursor: text;
+		user-select: text;
+	}
+
+	.page-title-input:focus {
+		outline: none;
+	}
+
+	.page-content {
+		display: grid;
+		gap: 10px;
+		min-height: var(--page-min-height, 96px);
 		padding: 12px;
 		color: var(--card-foreground);
 		background: transparent;
-		cursor: text;
+		user-select: none;
+	}
+
+	.add-element-button {
+		justify-self: start;
+		padding: 5px 8px;
+		font-size: 0.78rem;
+		line-height: 1.1;
+	}
+
+	.page-elements {
+		display: grid;
+		gap: 6px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 		font: inherit;
 		line-height: 1.35;
-		user-select: text;
+	}
+
+	.page-elements li {
+		border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+		border-radius: var(--radius-md);
+		padding: 7px 8px;
+		background: color-mix(in srgb, var(--card) 82%, var(--muted));
+		font-size: 0.78rem;
 	}
 
 	.page-card:focus-within {
@@ -889,10 +972,6 @@
 		box-shadow:
 			0 0 0 2px color-mix(in srgb, var(--primary) 28%, transparent),
 			var(--shadow-card-active);
-	}
-
-	.page-body:focus {
-		outline: none;
 	}
 
 	.stats-panel {

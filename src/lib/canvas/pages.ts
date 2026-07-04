@@ -1,9 +1,14 @@
 import type { Point } from './viewport';
 
+export type PageElement = {
+	id: number;
+	title: string;
+};
+
 export type Page = Point & {
 	id: number;
 	title: string;
-	description: string;
+	elements: PageElement[];
 };
 
 export function createPage(id: number, point: Point): Page {
@@ -12,7 +17,7 @@ export function createPage(id: number, point: Point): Page {
 		x: point.x,
 		y: point.y,
 		title: `Page ${id}`,
-		description: ''
+		elements: []
 	};
 }
 
@@ -27,4 +32,11 @@ export function movePage(page: Page, point: Point): Page {
 export function removePagesById(pages: Page[], pageIds: number[]): Page[] {
 	const idsToRemove = new Set(pageIds);
 	return pages.filter((page) => !idsToRemove.has(page.id));
+}
+
+export function addPageElement(page: Page, elementId: number): Page {
+	return {
+		...page,
+		elements: [...page.elements, { id: elementId, title: 'Page element' }]
+	};
 }
