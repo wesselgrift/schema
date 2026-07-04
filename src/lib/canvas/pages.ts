@@ -5,9 +5,12 @@ export type PageElement = {
 	title: string;
 };
 
+export const DEFAULT_PAGE_ICON_KEY = 'FileEmpty01Icon';
+
 export type Page = Point & {
 	id: number;
 	title: string;
+	icon: string;
 	elements: PageElement[];
 };
 
@@ -17,6 +20,7 @@ export function createPage(id: number, point: Point): Page {
 		x: point.x,
 		y: point.y,
 		title: `Page ${id}`,
+		icon: DEFAULT_PAGE_ICON_KEY,
 		elements: []
 	};
 }
@@ -39,4 +43,15 @@ export function addPageElement(page: Page, elementId: number): Page {
 		...page,
 		elements: [...page.elements, { id: elementId, title: 'Page element' }]
 	};
+}
+
+export function setPageIcon(page: Page, icon: string): Page {
+	return {
+		...page,
+		icon
+	};
+}
+
+export function resetPageIcon(page: Page): Page {
+	return setPageIcon(page, DEFAULT_PAGE_ICON_KEY);
 }

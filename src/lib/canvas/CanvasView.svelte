@@ -1,14 +1,32 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import * as Command from '$lib/components/ui/command';
+	import * as Popover from '$lib/components/ui/popover';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
+		AlertCircleIcon,
+		BrowserIcon,
+		Cards01Icon,
+		ChartIcon,
 		ChevronDownIcon,
 		ChevronLeftIcon,
 		Cursor02Icon,
+		FileEmpty01Icon,
 		FileAddIcon,
+		Image01Icon,
+		InputTextIcon,
+		LayoutGridIcon,
+		Link01Icon,
+		Loading03Icon,
+		Notification01Icon,
 		Refresh01Icon,
-		Search01Icon
+		Route01Icon,
+		Search01Icon,
+		ScreenAddToHomeIcon,
+		StructureFolderIcon,
+		TableIcon,
+		TextIcon
 	} from '@hugeicons/core-free-icons';
 	import {
 		screenToWorld,
@@ -18,7 +36,16 @@
 		type Viewport
 	} from './viewport';
 	import { isTextEntryTarget } from './keyboard';
-	import { addPageElement, createPage, movePage, removePagesById, type Page } from './pages';
+	import {
+		DEFAULT_PAGE_ICON_KEY,
+		addPageElement,
+		createPage,
+		movePage,
+		removePagesById,
+		resetPageIcon,
+		setPageIcon,
+		type Page
+	} from './pages';
 	import { findPagesInRect, normalizeRect, type SelectionRect } from './selection';
 
 	type DragState = {
@@ -65,16 +92,89 @@
 	type Tool = 'select' | 'add-page';
 
 	const GRID_SIZE = 32;
-	const PAGE_WIDTH = 180;
+	const PAGE_WIDTH = 270;
 	const PAGE_MIN_HEIGHT = 96;
 	const DRAG_THRESHOLD = 4;
 	const ZOOM_SPEED = 0.0015;
 	const KEYBOARD_PAN_STEP = 48;
 	const INITIAL_VIEWPORT: Viewport = { x: 0, y: 0, scale: 1 };
+	const PAGE_ICON_MAP = {
+		AlertCircleIcon,
+		BrowserIcon,
+		Cards01Icon,
+		ChartIcon,
+		Cursor02Icon,
+		FileAddIcon,
+		FileEmpty01Icon,
+		Image01Icon,
+		InputTextIcon,
+		LayoutGridIcon,
+		Link01Icon,
+		Loading03Icon,
+		Notification01Icon,
+		Route01Icon,
+		ScreenAddToHomeIcon,
+		StructureFolderIcon,
+		TableIcon,
+		TextIcon
+	};
+	const PAGE_ICON_CATEGORIES = [
+		{
+			label: 'Page/file',
+			options: [
+				{ key: 'FileEmpty01Icon', label: 'Empty page' },
+				{ key: 'FileAddIcon', label: 'Add page' },
+				{ key: 'StructureFolderIcon', label: 'Folder' }
+			]
+		},
+		{
+			label: 'Navigation',
+			options: [
+				{ key: 'BrowserIcon', label: 'Browser' },
+				{ key: 'ScreenAddToHomeIcon', label: 'Home screen' },
+				{ key: 'Route01Icon', label: 'Route' }
+			]
+		},
+		{
+			label: 'Inputs/actions',
+			options: [
+				{ key: 'TextIcon', label: 'Text' },
+				{ key: 'Cursor02Icon', label: 'Cursor' },
+				{ key: 'InputTextIcon', label: 'Text input' },
+				{ key: 'Link01Icon', label: 'Link' }
+			]
+		},
+		{
+			label: 'Display/data',
+			options: [
+				{ key: 'TableIcon', label: 'Table' },
+				{ key: 'ChartIcon', label: 'Chart' },
+				{ key: 'Image01Icon', label: 'Image' }
+			]
+		},
+		{
+			label: 'Feedback/system',
+			options: [
+				{ key: 'AlertCircleIcon', label: 'Alert' },
+				{ key: 'Notification01Icon', label: 'Notification' },
+				{ key: 'Loading03Icon', label: 'Loading' }
+			]
+		},
+		{
+			label: 'Containers',
+			options: [
+				{ key: 'LayoutGridIcon', label: 'Layout grid' },
+				{ key: 'Cards01Icon', label: 'Cards' }
+			]
+		}
+	] as const;
+
+	type PageIconKey = keyof typeof PAGE_ICON_MAP;
 
 	let viewport: Viewport = $state({ ...INITIAL_VIEWPORT });
 	let pages: Page[] = $state([]);
 	let pendingFocusPageId: number | null = $state(null);
+	let openIconPickerPageId: number | null = $state(null);
 	let activeTool = $state<Tool>('select');
 	let isSpacePanning = $state(false);
 	let nextPageId = 1;
@@ -167,6 +267,16 @@
 		event.stopPropagation();
 	}
 
+	function isPageHeaderControlTarget(target: EventTarget | null): boolean {
+		if (!(target instanceof Element)) return false;
+
+		return Boolean(
+			target.closest(
+				'button,input,select,textarea,[contenteditable],[data-page-header-control],[data-slot="popover-content"]'
+			)
+		);
+	}
+
 	function trackSurface(node: HTMLElement) {
 		surfaceElement = node;
 
@@ -205,6 +315,24 @@
 
 	function movePageById(pageId: number, point: Point) {
 		pages = pages.map((page) => (page.id === pageId ? movePage(page, point) : page));
+	}
+
+	function getPageIcon(iconKey: string) {
+		return PAGE_ICON_MAP[iconKey as PageIconKey] ?? PAGE_ICON_MAP[DEFAULT_PAGE_ICON_KEY];
+	}
+
+	function setPageIconById(pageId: number, iconKey: string) {
+		pages = pages.map((page) => (page.id === pageId ? setPageIcon(page, iconKey) : page));
+		openIconPickerPageId = null;
+	}
+
+	function resetPageIconById(pageId: number) {
+		pages = pages.map((page) => (page.id === pageId ? resetPageIcon(page) : page));
+		openIconPickerPageId = null;
+	}
+
+	function setIconPickerOpen(pageId: number, open: boolean) {
+		openIconPickerPageId = open ? pageId : null;
 	}
 
 	function isSelected(pageId: number): boolean {
@@ -247,6 +375,11 @@
 		if (event.button !== 0) return;
 
 		const header = event.currentTarget as HTMLElement;
+
+		if (isPageHeaderControlTarget(event.target)) {
+			stopCanvasEvent(event);
+			return;
+		}
 
 		stopCanvasDragEvent(event);
 		header.setPointerCapture(event.pointerId);
@@ -717,24 +850,90 @@
 					style:--page-width={`${PAGE_WIDTH}px`}
 					style:--page-min-height={`${PAGE_MIN_HEIGHT}px`}
 				>
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
 						class="page-header-row"
+						onpointerdown={(event) => handlePagePointerDown(event, page)}
+						onpointermove={handlePagePointerMove}
+						onpointerup={finishPagePointer}
+						onpointercancel={cancelPagePointer}
 					>
-						<div
-							class="page-drag-handle"
-							role="button"
-							tabindex="0"
-							aria-label={`Drag page ${page.id}`}
-							onpointerdown={(event) => handlePagePointerDown(event, page)}
-							onpointermove={handlePagePointerMove}
-							onpointerup={finishPagePointer}
-							onpointercancel={cancelPagePointer}
-							onkeydown={stopCanvasEvent}
-						></div>
+						<Popover.Root
+							open={openIconPickerPageId === page.id}
+							onOpenChange={(open) => setIconPickerOpen(page.id, open)}
+						>
+							<Popover.Trigger data-page-header-control>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										type="button"
+										variant="ghost"
+										size="icon-sm"
+										class="page-icon-trigger"
+										aria-label={`Change icon for ${page.title || `page ${page.id}`}`}
+										onpointerdown={stopCanvasEvent}
+										onpointermove={stopCanvasEvent}
+										onpointerup={stopCanvasEvent}
+										onpointercancel={stopCanvasEvent}
+									>
+										{#key page.icon}
+											<HugeiconsIcon icon={getPageIcon(page.icon)} strokeWidth={2} aria-hidden="true" />
+										{/key}
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content
+								align="start"
+								class="page-icon-picker"
+								data-page-header-control
+								onpointerdown={stopCanvasEvent}
+								onpointermove={stopCanvasEvent}
+								onpointerup={stopCanvasEvent}
+								onpointercancel={stopCanvasEvent}
+							>
+								<div class="icon-picker-header">
+									<span class="icon-picker-title">Icons</span>
+									<Button
+										type="button"
+										variant="ghost"
+										size="xs"
+										onclick={() => resetPageIconById(page.id)}
+										onpointerdown={stopCanvasEvent}
+									>
+										Remove
+									</Button>
+								</div>
+								<Command.Root class="icon-picker-command">
+									<Command.Input placeholder="Search icons..." />
+									<Command.List>
+										<Command.Empty>No icons found.</Command.Empty>
+										{#each PAGE_ICON_CATEGORIES as category (category.label)}
+											<Command.Group heading={category.label}>
+												{#each category.options as option (option.key)}
+													<Command.Item
+														value={`${option.label} ${option.key} ${category.label}`}
+														onSelect={() => setPageIconById(page.id, option.key)}
+														onclick={() => setPageIconById(page.id, option.key)}
+													>
+														<HugeiconsIcon
+															icon={getPageIcon(option.key)}
+															strokeWidth={2}
+															aria-hidden="true"
+														/>
+														<span>{option.label}</span>
+													</Command.Item>
+												{/each}
+											</Command.Group>
+										{/each}
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
 						<input
 							{@attach trackTitleInput(page.id)}
 							class="page-title-input"
 							aria-label={`Page ${page.id} title`}
+							size={Math.max(page.title.length, 4)}
 							bind:value={page.title}
 							onpointerdown={(event) => handlePageControlPointerDown(event, page)}
 							onpointermove={stopCanvasEvent}
@@ -913,40 +1112,53 @@
 		min-height: 28px;
 		padding: 0 10px;
 		background: var(--muted);
+		cursor: grab;
+		touch-action: none;
+		user-select: none;
 	}
 
 	.page-card.selected .page-header-row {
 		background: color-mix(in srgb, var(--primary) 35%, var(--card));
 	}
 
-	.page-drag-handle {
-		display: flex;
-		flex: 0 0 auto;
-		width: 10px;
-		height: 16px;
-		border-radius: var(--radius-sm);
-		background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1.5px);
-		background-position: 0 0;
-		background-size: 4px 4px;
-		cursor: grab;
-		opacity: 0.7;
-		touch-action: none;
-		user-select: none;
-	}
-
-	.page-drag-handle:active {
+	.page-header-row:active {
 		cursor: grabbing;
 	}
 
-	.page-drag-handle:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: -2px;
+	:global(.page-icon-trigger) {
+		flex: 0 0 auto;
+	}
+
+	:global(.page-icon-picker) {
+		width: 17rem;
+		gap: 0.25rem;
+		padding: 0.375rem;
+	}
+
+	.icon-picker-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0 0.25rem 0.125rem 0.5rem;
+	}
+
+	.icon-picker-title {
+		color: var(--foreground);
+		font-size: 0.75rem;
+		font-weight: 600;
+		line-height: 1;
+	}
+
+	:global(.icon-picker-command) {
+		border-radius: var(--radius-md);
 	}
 
 	.page-title-input {
-		flex: 1 1 auto;
+		flex: 0 1 auto;
 		min-width: 0;
-		width: 100%;
+		width: auto;
+		max-width: 100%;
 		border: 0;
 		border-radius: var(--radius-sm);
 		padding: 4px 0;
@@ -954,7 +1166,7 @@
 		background: transparent;
 		font: inherit;
 		font-size: 0.78rem;
-		font-weight: 700;
+		font-weight: 500;
 		line-height: 1;
 		cursor: text;
 		user-select: text;
