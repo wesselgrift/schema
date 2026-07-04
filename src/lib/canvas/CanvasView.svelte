@@ -393,6 +393,13 @@ let activeTool = $state<Tool>('select');
 		stopCanvasEvent(event);
 	}
 
+	function blurActiveTextarea() {
+		const activeElement = document.activeElement;
+		if (activeElement instanceof HTMLTextAreaElement && activeElement.classList.contains('text-node-body')) {
+			activeElement.blur();
+		}
+	}
+
 	function handlePointerDown(event: PointerEvent) {
 		if (event.button !== 0) return;
 
@@ -400,6 +407,7 @@ let activeTool = $state<Tool>('select');
 		const point = getLocalPoint(event, surface);
 
 		event.preventDefault();
+		blurActiveTextarea();
 
 		if (isPanActive) {
 			surface.setPointerCapture(event.pointerId);
@@ -774,7 +782,6 @@ let activeTool = $state<Tool>('select');
 						onpointermove={stopCanvasEvent}
 						onpointerup={stopCanvasEvent}
 						onpointercancel={stopCanvasEvent}
-						onwheel={stopCanvasEvent}
 						onkeydown={stopCanvasEvent}
 					></textarea>
 				</div>
