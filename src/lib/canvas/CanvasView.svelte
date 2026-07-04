@@ -2,7 +2,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { Cursor02Icon, FileAddIcon, Search01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
+	import {
+		ChevronDownIcon,
+		ChevronLeftIcon,
+		Cursor02Icon,
+		FileAddIcon,
+		Refresh01Icon,
+		Search01Icon
+	} from '@hugeicons/core-free-icons';
 	import {
 		screenToWorld,
 		worldToScreen,
@@ -664,15 +671,6 @@
 	function resetView() {
 		viewport = { ...INITIAL_VIEWPORT };
 	}
-
-	function clearPages() {
-		pages = [];
-		selectedPageIds = [];
-		selectionDrag = null;
-		marqueeDrag = null;
-		pendingFocusPageId = null;
-		focusedPageId = null;
-	}
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} onkeyup={handleWindowKeyup} />
@@ -769,25 +767,55 @@
 		</div>
 	</div>
 
-	<div
-		class="stats-panel"
-		role="group"
-		aria-label="Canvas controls"
-	>
-		<Button type="button" size="sm" variant="outline" onclick={clearPages} disabled={pages.length === 0}>
-			Clear pages
+	<div class="top-controls gap-2" role="group" aria-label="Project controls">
+		<Button
+			type="button"
+			size="icon"
+			variant="outline"
+			class="floating-control-button bg-background hover:bg-secondary"
+			aria-label="Go back"
+		>
+			<HugeiconsIcon
+				icon={ChevronLeftIcon}
+				data-icon="inline-start"
+				strokeWidth={2}
+				aria-hidden="true"
+			/>
+		</Button>
+		<Button type="button" variant="outline" class="floating-control-button bg-background hover:bg-secondary">
+			Untitled project
+			<HugeiconsIcon
+				icon={ChevronDownIcon}
+				data-icon="inline-end"
+				strokeWidth={2}
+				aria-hidden="true"
+			/>
 		</Button>
 	</div>
 
 	<div class="bottom-controls">
-		<div class="control-pill text-muted-foreground" aria-live="polite" aria-label="Zoom {zoomPercent}%">
+		<div
+			class="zoom-pill bg-background text-muted-foreground"
+			aria-live="polite"
+			aria-label="Zoom {zoomPercent}%"
+		>
 			<HugeiconsIcon icon={Search01Icon} size={14} strokeWidth={2} aria-hidden="true" />
 			<span class="text-xs font-medium leading-none">{zoomPercent}%</span>
 		</div>
-		<button type="button" class="control-pill text-muted-foreground" onclick={resetView}>
-			<HugeiconsIcon icon={Refresh01Icon} size={14} strokeWidth={2} aria-hidden="true" />
-			<span class="text-xs font-medium leading-none">Reset view</span>
-		</button>
+		<Button
+			type="button"
+			variant="outline"
+			class="floating-control-button bg-background hover:bg-secondary"
+			onclick={resetView}
+		>
+			<HugeiconsIcon
+				icon={Refresh01Icon}
+				data-icon="inline-start"
+				strokeWidth={2}
+				aria-hidden="true"
+			/>
+			Reset view
+		</Button>
 	</div>
 
 	<div class="tool-dock">
@@ -994,20 +1022,17 @@
 			var(--shadow-card-active);
 	}
 
-	.stats-panel {
+	.top-controls {
 		position: absolute;
 		top: 16px;
 		left: 16px;
 		z-index: 1;
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 8px;
-		border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-		border-radius: var(--radius-xl);
-		background: var(--popover);
+	}
+
+	:global(.floating-control-button) {
 		box-shadow: var(--shadow-popover);
-		backdrop-filter: blur(10px);
 	}
 
 	.tool-dock {
@@ -1037,24 +1062,17 @@
 		gap: 8px;
 	}
 
-	.control-pill {
+	.zoom-pill {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 5px 8px;
-		border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-		border-radius: var(--radius-lg);
-		background: color-mix(in srgb, var(--popover) 95%, var(--card));
+		justify-content: center;
+		width: 4.25rem;
+		height: 1.75rem;
+		gap: 0.25rem;
+		padding: 0 0.5rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-popover);
-		backdrop-filter: blur(10px);
-	}
-
-	button.control-pill {
-		cursor: pointer;
-	}
-
-	button.control-pill:hover {
-		color: var(--foreground);
 	}
 
 </style>
