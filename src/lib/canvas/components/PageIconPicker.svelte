@@ -36,12 +36,13 @@
 				type="button"
 				variant="outline"
 				size="icon-lg"
-				class="page-icon-trigger shrink-0 border-none"
+				class="page-icon-trigger nodrag nopan shrink-0 border-none"
 				aria-label={`Change icon for ${pageTitle || `page ${pageId}`}`}
 				onpointerdown={onStopCanvasEvent}
 				onpointermove={onStopCanvasEvent}
 				onpointerup={onStopCanvasEvent}
 				onpointercancel={onStopCanvasEvent}
+				onkeydown={onStopCanvasEvent}
 			>
 				{#key iconKey}
 					<HugeiconsIcon icon={getPageIcon(iconKey)} strokeWidth={2} aria-hidden="true" />
@@ -51,12 +52,13 @@
 	</Popover.Trigger>
 	<Popover.Content
 		align="start"
-		class="page-icon-picker"
+		class="page-icon-picker nodrag nopan"
 		data-page-header-control
 		onpointerdown={onStopCanvasEvent}
 		onpointermove={onStopCanvasEvent}
 		onpointerup={onStopCanvasEvent}
 		onpointercancel={onStopCanvasEvent}
+		onkeydown={onStopCanvasEvent}
 	>
 		<div class="icon-picker-header">
 			<span class="icon-picker-title">Icons</span>
@@ -66,6 +68,7 @@
 				size="xs"
 				onclick={() => onIconReset(pageId)}
 				onpointerdown={onStopCanvasEvent}
+				onkeydown={onStopCanvasEvent}
 			>
 				Remove
 			</Button>
