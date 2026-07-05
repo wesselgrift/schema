@@ -15,7 +15,7 @@
 		Loading03Icon,
 		Refresh01Icon,
 		Search01Icon,
-		Tick01Icon
+		Tick02Icon
 	} from '@hugeicons/core-free-icons';
 	import {
 		Background,
@@ -112,6 +112,7 @@
 
 	let canvases = $derived(listCanvases(store));
 	let menuOpen = $state(false);
+	let titleControlEl = $state<HTMLElement | null>(null);
 
 	let nodes = $state.raw<CanvasFlowNode[]>(orderNodesForParenting(activeCanvas.nodes));
 	let edges = $state.raw<PageFlowEdgeType[]>(activeCanvas.edges);
@@ -761,6 +762,7 @@
 
 	<div class="top-controls gap-2" role="group" aria-label="Project controls">
 		<div
+			bind:this={titleControlEl}
 			class="project-title-control floating-control-button flex h-7 items-center gap-1 rounded-md border border-border bg-background pr-1 pl-2 text-xs font-medium text-foreground"
 		>
 			<input
@@ -777,18 +779,23 @@
 				>
 					<HugeiconsIcon icon={ChevronDownIcon} size={14} strokeWidth={2} aria-hidden="true" />
 				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="start" class="w-56">
+				<DropdownMenu.Content
+					customAnchor={titleControlEl}
+					align="start"
+					sideOffset={2}
+					class="w-56"
+				>
 					{#each canvases as canvas (canvas.id)}
 						<div class="canvas-row flex items-center gap-1">
 							<button
 								type="button"
-								class="canvas-row-switch flex h-8 flex-1 items-center gap-2 rounded-sm px-2 text-left text-sm outline-none hover:bg-secondary"
+								class="canvas-row-switch flex h-7 flex-1 items-center gap-2 rounded-sm px-2 text-left text-xs outline-none hover:bg-secondary"
 								onclick={() => switchCanvas(canvas.id)}
 							>
-								<span class="flex size-4 shrink-0 items-center justify-center">
+								<span class="flex size-4 shrink-0 items-center justify-center text-green-600">
 									{#if canvas.id === store.activeCanvasId}
 										<HugeiconsIcon
-											icon={Tick01Icon}
+											icon={Tick02Icon}
 											size={14}
 											strokeWidth={2}
 											aria-hidden="true"
