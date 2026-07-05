@@ -78,7 +78,7 @@
 <NodeToolbar nodeId={id} position={Position.Top} align="start" offset={10} isVisible>
 	<input
 		{@attach titleFocusAttachment(data.focusTitle)}
-		class="section-flow-title-input nodrag nopan rounded-md border border-2 border-muted bg-muted px-2 py-1 text-xs font-semibold text-foreground outline-none select-text focus:border-2 focus:border-blue-500 focus:bg-white placeholder:text-muted-foreground"
+		class="section-flow-title-input nodrag nopan rounded-md border border-2 border-muted bg-muted px-2 py-1 text-xs font-medium text-foreground outline-none select-text focus:border-2 focus:border-blue-500 focus:bg-white placeholder:text-muted-foreground"
 		aria-label={`Section ${data.sectionId} title`}
 		value={data.title}
 		placeholder="Section"
