@@ -5,6 +5,8 @@ export const PAGE_NODE_TYPE = 'page';
 export const PAGE_FLOW_EDGE_TYPE = 'page-flow';
 export const PAGE_SOURCE_HANDLE = 'right';
 export const PAGE_TARGET_HANDLE = 'left';
+export const PAGE_TOP_HANDLE = 'top';
+export const PAGE_BOTTOM_HANDLE = 'bottom';
 export const PAGE_NODE_DRAG_HANDLE = '.page-header-row';
 
 export type PageNodeData = {

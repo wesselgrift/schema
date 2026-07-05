@@ -3,7 +3,13 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import PageIconPicker from './PageIconPicker.svelte';
-	import { PAGE_SOURCE_HANDLE, PAGE_TARGET_HANDLE, type PageFlowNode } from '../flow';
+	import {
+		PAGE_BOTTOM_HANDLE,
+		PAGE_SOURCE_HANDLE,
+		PAGE_TARGET_HANDLE,
+		PAGE_TOP_HANDLE,
+		type PageFlowNode
+	} from '../flow';
 
 	type FocusablePageFlowNode = PageFlowNode & {
 		data: PageFlowNode['data'] & {
@@ -14,6 +20,8 @@
 	let { id, data, selected = false }: NodeProps<FocusablePageFlowNode> = $props();
 
 	const { updateNodeData } = useSvelteFlow<FocusablePageFlowNode>();
+	const HANDLE_CLASS =
+		"h-8! w-8! border-0! bg-transparent! opacity-0 shadow-none! transition-opacity before:pointer-events-none before:absolute before:left-1/2 before:top-1/2 before:h-3.5 before:w-3.5 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:border-2 before:border-white before:bg-blue-500 before:shadow-sm before:content-[''] hover:opacity-100 group-hover/page-card:opacity-100 group-focus-within/page-card:opacity-100 [&.connectingfrom]:opacity-100 [&.connectingto]:opacity-100 [&.valid]:opacity-100";
 
 	let iconPickerOpen = $state(false);
 
@@ -86,7 +94,7 @@
 
 <div
 	class={[
-		'page-card group/page-card w-[270px] overflow-hidden rounded-lg border-2 border-border bg-card shadow-[var(--shadow-card)]',
+		'page-card group/page-card w-[270px] overflow-visible rounded-lg border-2 border-border bg-card shadow-[var(--shadow-card)]',
 		{
 			'selected border-blue-400!': selected
 		}
@@ -94,7 +102,7 @@
 >
 	<div
 		class={[
-			'page-header-row flex min-h-10 w-full cursor-grab touch-none items-center gap-0.5 px-1 select-none active:cursor-grabbing',
+			'page-header-row flex min-h-10 w-full cursor-grab touch-none items-center gap-0.5 rounded-t-md px-1 select-none active:cursor-grabbing',
 			{
 				'bg-blue-50': selected,
 				'bg-muted/50': !selected
@@ -147,12 +155,24 @@
 		id={PAGE_TARGET_HANDLE}
 		type="target"
 		position={Position.Left}
-		class="h-3.5! w-3.5! border-2! border-white! bg-blue-500! opacity-0 shadow-sm transition-opacity group-hover/page-card:opacity-100 group-focus-within/page-card:opacity-100 [&.connectingfrom]:opacity-100 [&.connectingto]:opacity-100 [&.valid]:opacity-100"
+		class={`${HANDLE_CLASS} left-[-12px]!`}
+	/>
+	<Handle
+		id={PAGE_TOP_HANDLE}
+		type="target"
+		position={Position.Top}
+		class={`${HANDLE_CLASS} top-[-12px]!`}
 	/>
 	<Handle
 		id={PAGE_SOURCE_HANDLE}
 		type="source"
 		position={Position.Right}
-		class="h-3.5! w-3.5! border-2! border-white! bg-blue-500! opacity-0 shadow-sm transition-opacity group-hover/page-card:opacity-100 group-focus-within/page-card:opacity-100 [&.connectingfrom]:opacity-100 [&.connectingto]:opacity-100 [&.valid]:opacity-100"
+		class={`${HANDLE_CLASS} right-[-12px]!`}
+	/>
+	<Handle
+		id={PAGE_BOTTOM_HANDLE}
+		type="source"
+		position={Position.Bottom}
+		class={`${HANDLE_CLASS} bottom-[-12px]!`}
 	/>
 </div>

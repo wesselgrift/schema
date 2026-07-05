@@ -2,6 +2,7 @@
 	import {
 		BaseEdge,
 		EdgeLabel,
+		Position,
 		getBezierPath,
 		useSvelteFlow,
 		type EdgeProps,
@@ -27,14 +28,33 @@
 	}: EdgeProps<PageFlowEdge> = $props();
 
 	const { updateEdge } = useSvelteFlow<Node, PageFlowEdge>();
+	const HANDLE_OFFSET = 12;
+	const CARD_EDGE_OVERLAP = 16;
+	const EDGE_ENDPOINT_INSET = HANDLE_OFFSET + CARD_EDGE_OVERLAP;
 	let labelTextarea = $state<HTMLTextAreaElement | undefined>();
+
+	function getCardEdgePoint(x: number, y: number, position: Position) {
+		switch (position) {
+			case Position.Left:
+				return { x: x + EDGE_ENDPOINT_INSET, y };
+			case Position.Right:
+				return { x: x - EDGE_ENDPOINT_INSET, y };
+			case Position.Top:
+				return { x, y: y + EDGE_ENDPOINT_INSET };
+			case Position.Bottom:
+				return { x, y: y - EDGE_ENDPOINT_INSET };
+		}
+	}
+
+	let sourcePoint = $derived(getCardEdgePoint(sourceX, sourceY, sourcePosition));
+	let targetPoint = $derived(getCardEdgePoint(targetX, targetY, targetPosition));
 
 	let [path, labelX, labelY] = $derived(
 		getBezierPath({
-			sourceX,
-			sourceY,
-			targetX,
-			targetY,
+			sourceX: sourcePoint.x,
+			sourceY: sourcePoint.y,
+			targetX: targetPoint.x,
+			targetY: targetPoint.y,
 			sourcePosition,
 			targetPosition
 		})
