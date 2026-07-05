@@ -4,7 +4,6 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
 		ChevronDownIcon,
-		ChevronLeftIcon,
 		Cursor02Icon,
 		FileAddIcon,
 		FileExportIcon,
@@ -91,7 +90,7 @@
 	let selectionStart: { x: number; y: number } | null = null;
 	let sectionDrag = $state<SectionDragState | null>(null);
 	let isExportOpen = $state(false);
-	const projectName = 'Untitled project';
+	let projectName = $state('Untitled project');
 
 	let zoomPercent = $derived(Math.round(viewport.zoom * 100));
 	let sectionMarquee = $derived.by<MarqueeRect | null>(() => {
@@ -535,6 +534,15 @@
 	function resetView() {
 		viewport = { ...INITIAL_VIEWPORT };
 	}
+
+	function handleProjectTitleKeydown(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+		event.stopPropagation();
+
+		if (event.key === 'Enter' || event.key === 'Escape') {
+			event.preventDefault();
+			event.currentTarget.blur();
+		}
+	}
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
@@ -599,29 +607,18 @@
 	</div>
 
 	<div class="top-controls gap-2" role="group" aria-label="Project controls">
-		<Button
-			type="button"
-			size="icon"
-			variant="outline"
-			class="floating-control-button bg-background hover:bg-secondary"
-			aria-label="Go back"
+		<div
+			class="project-title-control floating-control-button flex h-7 items-center gap-1 rounded-md border border-border bg-background pr-1.5 pl-2 text-xs font-medium text-foreground"
 		>
-			<HugeiconsIcon
-				icon={ChevronLeftIcon}
-				data-icon="inline-start"
-				strokeWidth={2}
-				aria-hidden="true"
+			<input
+				bind:value={projectName}
+				class="project-title-input min-w-0 bg-transparent text-foreground outline-none select-text placeholder:text-muted-foreground"
+				aria-label="Project title"
+				placeholder="Untitled project"
+				onkeydown={handleProjectTitleKeydown}
 			/>
-		</Button>
-		<Button type="button" variant="outline" class="floating-control-button bg-background hover:bg-secondary">
-			{projectName}
-			<HugeiconsIcon
-				icon={ChevronDownIcon}
-				data-icon="inline-end"
-				strokeWidth={2}
-				aria-hidden="true"
-			/>
-		</Button>
+			<HugeiconsIcon icon={ChevronDownIcon} size={14} strokeWidth={2} aria-hidden="true" />
+		</div>
 	</div>
 
 	<div class="top-controls-right" role="group" aria-label="Export controls">
@@ -761,6 +758,15 @@
 
 	:global(.floating-control-button) {
 		box-shadow: var(--shadow-popover);
+	}
+
+	.project-title-control:focus-within {
+		border-color: var(--color-blue-500);
+	}
+
+	.project-title-input {
+		field-sizing: content;
+		max-width: 16rem;
 	}
 
 	.tool-dock {
