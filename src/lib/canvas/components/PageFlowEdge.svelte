@@ -36,6 +36,7 @@
 	const LABEL_DRAG_THRESHOLD = 4;
 	let labelTextarea = $state<HTMLTextAreaElement | undefined>();
 	let interactionPath = $state<SVGPathElement | undefined>();
+	let measurePath: SVGPathElement | undefined;
 	let isEditing = $state(false);
 	let dragPointerId: number | undefined;
 	let labelDragStart: { x: number; y: number } | undefined;
@@ -87,17 +88,26 @@
 		}
 	}
 
+	function getMeasurePath(): SVGPathElement | undefined {
+		if (typeof document === 'undefined') return undefined;
+
+		measurePath ??= document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		return measurePath;
+	}
+
 	function getPathPoint(pathData: string, position: number) {
-		if (!interactionPath || pathData === '') {
+		const measure = getMeasurePath();
+		if (!measure || pathData === '') {
 			return { x: fallbackLabelX, y: fallbackLabelY };
 		}
 
-		const totalLength = getPathLength(interactionPath);
+		measure.setAttribute('d', pathData);
+		const totalLength = getPathLength(measure);
 		if (!totalLength) {
 			return { x: fallbackLabelX, y: fallbackLabelY };
 		}
 
-		const point = interactionPath.getPointAtLength(totalLength * position);
+		const point = measure.getPointAtLength(totalLength * position);
 		return { x: point.x, y: point.y };
 	}
 
