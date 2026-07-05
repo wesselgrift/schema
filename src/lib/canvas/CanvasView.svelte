@@ -19,12 +19,12 @@
 	} from './viewport';
 	import { isTextEntryTarget } from './keyboard';
 	import {
-		addPageElement,
 		createPage,
 		movePage,
 		removePagesById,
 		resetPageIcon,
 		setPageIcon,
+		setPageDescription,
 		type Page
 	} from './pages';
 	import { findPagesInRect, normalizeRect, type SelectionRect } from './selection';
@@ -95,7 +95,6 @@
 	let addClick: AddClickState | null = null;
 	let pageDrag: PageDragState | null = null;
 	let focusedPageId: number | null = null;
-	let nextElementId = 1;
 	let surfaceElement: HTMLElement | undefined;
 	const titleInputElements: Record<number, HTMLInputElement | undefined> = {};
 
@@ -239,6 +238,12 @@
 		pages = pages.map((page) => (page.id === pageId ? { ...page, title } : page));
 	}
 
+	function updatePageDescription(pageId: number, description: string) {
+		pages = pages.map((page) =>
+			page.id === pageId ? setPageDescription(page, description) : page
+		);
+	}
+
 	function setPageIconById(pageId: number, iconKey: string) {
 		pages = pages.map((page) => (page.id === pageId ? setPageIcon(page, iconKey) : page));
 		openIconPickerPageId = null;
@@ -285,12 +290,6 @@
 			const start = startPositions.get(page.id);
 			return start ? movePage(page, { x: start.x + delta.x, y: start.y + delta.y }) : page;
 		});
-	}
-
-	function addElementToPage(pageId: number) {
-		pages = pages.map((page) =>
-			page.id === pageId ? addPageElement(page, nextElementId++) : page
-		);
 	}
 
 	function handlePagePointerDown(event: PointerEvent, page: Page) {
@@ -785,7 +784,7 @@
 					onStopCanvasEvent={stopCanvasEvent}
 					onTitleKeydown={handleTitleInputKeydown}
 					onTitleInput={updatePageTitle}
-					onAddElement={addElementToPage}
+					onDescriptionInput={updatePageDescription}
 					onIconPickerOpenChange={setIconPickerOpen}
 					onIconChange={setPageIconById}
 					onIconReset={resetPageIconById}

@@ -2,9 +2,9 @@ import { describe, expect, test } from 'vitest';
 import { findPagesInRect, normalizeRect } from './selection';
 
 const pages = [
-	{ id: 1, x: 0, y: 0, title: 'Page 1', icon: 'FileEmpty01Icon', elements: [] },
-	{ id: 2, x: 100, y: 100, title: 'Page 2', icon: 'FileEmpty01Icon', elements: [] },
-	{ id: 3, x: 300, y: 300, title: 'Page 3', icon: 'FileEmpty01Icon', elements: [] }
+	{ id: 1, x: 0, y: 0, title: 'Page 1', icon: 'FileEmpty01Icon', description: '' },
+	{ id: 2, x: 100, y: 100, title: 'Page 2', icon: 'FileEmpty01Icon', description: '' },
+	{ id: 3, x: 300, y: 300, title: 'Page 3', icon: 'FileEmpty01Icon', description: '' }
 ];
 
 describe('canvas selection', () => {

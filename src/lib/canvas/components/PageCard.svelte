@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Attachment } from 'svelte/attachments';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import PageIconPicker from './PageIconPicker.svelte';
 	import type { Page } from '../pages';
 	import type { Point } from '../viewport';
@@ -20,7 +21,7 @@
 		onStopCanvasEvent: (event: Event) => void;
 		onTitleKeydown: (event: KeyboardEvent) => void;
 		onTitleInput: (pageId: number, title: string) => void;
-		onAddElement: (pageId: number) => void;
+		onDescriptionInput: (pageId: number, description: string) => void;
 		onIconPickerOpenChange: (pageId: number, open: boolean) => void;
 		onIconChange: (pageId: number, iconKey: string) => void;
 		onIconReset: (pageId: number) => void;
@@ -42,7 +43,7 @@
 		onStopCanvasEvent,
 		onTitleKeydown,
 		onTitleInput,
-		onAddElement,
+		onDescriptionInput,
 		onIconPickerOpenChange,
 		onIconChange,
 		onIconReset
@@ -100,26 +101,17 @@
 		/>
 	</div>
 	<div class="page-content grid gap-[10px] min-h-[var(--page-min-height)] p-3 text-card-foreground bg-transparent select-none">
-		<button
-			type="button"
-			class="add-element-button justify-self-start border border-input rounded-md px-2 py-[5px] text-foreground bg-card text-[0.78rem] leading-[1.1] cursor-pointer hover:border-primary hover:text-accent-foreground focus-visible:border-primary focus-visible:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
-			onclick={() => onAddElement(page.id)}
+		<Textarea
+			value={page.description}
+			placeholder="Describe this page"
+			aria-label={`Description for ${page.title || `page ${page.id}`}`}
+			class="min-h-24 resize-none border-0 bg-transparent p-0 text-[0.78rem] leading-[1.35] shadow-none focus-visible:ring-0 focus-visible:border-transparent placeholder:text-muted-foreground"
+			oninput={(event) => onDescriptionInput(page.id, event.currentTarget.value)}
 			onpointerdown={(event) => onPageControlPointerDown(event, page)}
 			onpointermove={onStopCanvasEvent}
 			onpointerup={onStopCanvasEvent}
 			onpointercancel={onStopCanvasEvent}
 			onkeydown={onStopCanvasEvent}
-		>
-			Add element
-		</button>
-		<ul class="page-elements grid gap-1.5 m-0 p-0 list-none font-[inherit] leading-[1.35]" aria-label={`Elements on ${page.title || `page ${page.id}`}`}>
-			{#each page.elements as element (element.id)}
-				<li
-					class="border border-[color-mix(in_srgb,var(--border)_72%,transparent)] rounded-md px-2 py-[7px] bg-[color-mix(in_srgb,var(--card)_82%,var(--muted))] text-[0.78rem]"
-				>
-					{element.title}
-				</li>
-			{/each}
-		</ul>
+		/>
 	</div>
 </div>

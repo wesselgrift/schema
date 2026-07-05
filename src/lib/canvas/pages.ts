@@ -1,17 +1,12 @@
 import type { Point } from './viewport';
 
-export type PageElement = {
-	id: number;
-	title: string;
-};
-
 export const DEFAULT_PAGE_ICON_KEY = 'FileEmpty01Icon';
 
 export type Page = Point & {
 	id: number;
 	title: string;
 	icon: string;
-	elements: PageElement[];
+	description: string;
 };
 
 export function createPage(id: number, point: Point): Page {
@@ -21,7 +16,7 @@ export function createPage(id: number, point: Point): Page {
 		y: point.y,
 		title: `Page ${id}`,
 		icon: DEFAULT_PAGE_ICON_KEY,
-		elements: []
+		description: ''
 	};
 }
 
@@ -38,10 +33,10 @@ export function removePagesById(pages: Page[], pageIds: number[]): Page[] {
 	return pages.filter((page) => !idsToRemove.has(page.id));
 }
 
-export function addPageElement(page: Page, elementId: number): Page {
+export function setPageDescription(page: Page, description: string): Page {
 	return {
 		...page,
-		elements: [...page.elements, { id: elementId, title: 'Page element' }]
+		description
 	};
 }
 

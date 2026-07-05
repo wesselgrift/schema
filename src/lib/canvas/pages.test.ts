@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
-	addPageElement,
 	createPage,
 	DEFAULT_PAGE_ICON_KEY,
 	movePage,
 	removePagesById,
 	resetPageIcon,
+	setPageDescription,
 	setPageIcon
 } from './pages';
 
@@ -17,7 +17,7 @@ describe('canvas pages', () => {
 			y: -40,
 			title: 'Page 3',
 			icon: DEFAULT_PAGE_ICON_KEY,
-			elements: []
+			description: ''
 		});
 	});
 
@@ -28,7 +28,7 @@ describe('canvas pages', () => {
 			y: -40,
 			title: 'Checkout',
 			icon: 'BrowserIcon',
-			elements: [{ id: 1, title: 'Email' }]
+			description: 'Checkout flow'
 		};
 
 		expect(movePage(page, { x: 200, y: 80 })).toEqual({
@@ -37,39 +37,28 @@ describe('canvas pages', () => {
 			y: 80,
 			title: 'Checkout',
 			icon: 'BrowserIcon',
-			elements: [{ id: 1, title: 'Email' }]
+			description: 'Checkout flow'
 		});
 	});
 
 	test('removes pages with matching ids', () => {
 		const pages = [
-			{ id: 1, x: 0, y: 0, title: 'Home', icon: 'BrowserIcon', elements: [] },
-			{ id: 2, x: 100, y: 0, title: 'Search', icon: 'Search01Icon', elements: [] },
-			{ id: 3, x: 200, y: 0, title: 'Checkout', icon: 'FileAddIcon', elements: [] }
+			{ id: 1, x: 0, y: 0, title: 'Home', icon: 'BrowserIcon', description: '' },
+			{ id: 2, x: 100, y: 0, title: 'Search', icon: 'Search01Icon', description: '' },
+			{ id: 3, x: 200, y: 0, title: 'Checkout', icon: 'FileAddIcon', description: '' }
 		];
 
 		expect(removePagesById(pages, [1, 3])).toEqual([
-			{ id: 2, x: 100, y: 0, title: 'Search', icon: 'Search01Icon', elements: [] }
+			{ id: 2, x: 100, y: 0, title: 'Search', icon: 'Search01Icon', description: '' }
 		]);
 	});
 
-	test('adds a generic element to a page', () => {
-		const page = {
-			id: 3,
-			x: 120,
-			y: -40,
-			title: 'Checkout',
-			icon: 'BrowserIcon',
-			elements: []
-		};
+	test('updates a page description', () => {
+		const page = createPage(3, { x: 120, y: -40 });
 
-		expect(addPageElement(page, 7)).toEqual({
-			id: 3,
-			x: 120,
-			y: -40,
-			title: 'Checkout',
-			icon: 'BrowserIcon',
-			elements: [{ id: 7, title: 'Page element' }]
+		expect(setPageDescription(page, 'Describe this page')).toEqual({
+			...page,
+			description: 'Describe this page'
 		});
 	});
 
