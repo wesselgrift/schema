@@ -51,9 +51,9 @@
 
 <div
 	class={[
-		'page-card absolute z-[2] w-[var(--page-width)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)] focus-within:border-primary focus-within:shadow-[0_0_0_2px_color-mix(in_srgb,var(--primary)_28%,transparent),var(--shadow-card-active)]',
+		'page-card absolute z-[2] w-[var(--page-width)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)]',
 		{
-			'selected border-accent-foreground/50 shadow-[var(--shadow-card-active)]': selected
+			'selected border-blue-400!': selected
 		}
 	]}
 	style:left={`${screenPoint.x}px`}
@@ -66,7 +66,7 @@
 		class={[
 			'page-header-row flex w-full min-h-10 items-center gap-0.5 px-1 cursor-grab active:cursor-grabbing touch-none select-none',
 			{
-				'bg-primary/20': selected,
+				'bg-blue-50': selected,
 				'bg-muted/50': !selected
 			}
 		]}
