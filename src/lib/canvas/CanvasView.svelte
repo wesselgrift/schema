@@ -13,6 +13,7 @@
 	import {
 		Background,
 		BackgroundVariant,
+		ConnectionMode,
 		PanOnScrollMode,
 		SelectionMode,
 		SvelteFlow,
@@ -234,6 +235,7 @@
 			{nodeTypes}
 			{edgeTypes}
 			nodeOrigin={NODE_ORIGIN}
+			connectionMode={ConnectionMode.Loose}
 			deleteKey={DELETE_KEYS}
 			panOnScroll={true}
 			panOnScrollMode={PanOnScrollMode.Free}

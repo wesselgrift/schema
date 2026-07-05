@@ -153,13 +153,13 @@
 
 	<Handle
 		id={PAGE_TARGET_HANDLE}
-		type="target"
+		type="source"
 		position={Position.Left}
 		class={`${HANDLE_CLASS} left-[-12px]!`}
 	/>
 	<Handle
 		id={PAGE_TOP_HANDLE}
-		type="target"
+		type="source"
 		position={Position.Top}
 		class={`${HANDLE_CLASS} top-[-12px]!`}
 	/>
