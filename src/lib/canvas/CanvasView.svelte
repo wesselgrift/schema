@@ -7,6 +7,7 @@
 		ChevronLeftIcon,
 		Cursor02Icon,
 		FileAddIcon,
+		FileExportIcon,
 		GroupIcon,
 		Refresh01Icon,
 		Search01Icon
@@ -54,6 +55,7 @@
 	import PageFlowEdge from './components/PageFlowEdge.svelte';
 	import PageFlowNode from './components/PageFlowNode.svelte';
 	import SectionFlowNodeComponent from './components/SectionFlowNode.svelte';
+	import ExportSpecDialog from './ExportSpecDialog.svelte';
 
 	type Tool = 'select' | 'add-page' | 'add-section';
 	type SectionDragState = {
@@ -88,6 +90,8 @@
 	let flowWrapper: HTMLElement | undefined;
 	let selectionStart: { x: number; y: number } | null = null;
 	let sectionDrag = $state<SectionDragState | null>(null);
+	let isExportOpen = $state(false);
+	const projectName = 'Untitled project';
 
 	let zoomPercent = $derived(Math.round(viewport.zoom * 100));
 	let sectionMarquee = $derived.by<MarqueeRect | null>(() => {
@@ -610,13 +614,30 @@
 			/>
 		</Button>
 		<Button type="button" variant="outline" class="floating-control-button bg-background hover:bg-secondary">
-			Untitled project
+			{projectName}
 			<HugeiconsIcon
 				icon={ChevronDownIcon}
 				data-icon="inline-end"
 				strokeWidth={2}
 				aria-hidden="true"
 			/>
+		</Button>
+	</div>
+
+	<div class="top-controls-right" role="group" aria-label="Export controls">
+		<Button
+			type="button"
+			variant="outline"
+			class="floating-control-button bg-background hover:bg-secondary"
+			onclick={() => (isExportOpen = true)}
+		>
+			<HugeiconsIcon
+				icon={FileExportIcon}
+				data-icon="inline-start"
+				strokeWidth={2}
+				aria-hidden="true"
+			/>
+			Export
 		</Button>
 	</div>
 
@@ -678,6 +699,8 @@
 			</Tabs.List>
 		</Tabs.Root>
 	</div>
+
+	<ExportSpecDialog bind:open={isExportOpen} {nodes} {edges} {projectName} />
 </section>
 
 <style>
@@ -722,6 +745,15 @@
 		position: absolute;
 		top: 16px;
 		left: 16px;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+	}
+
+	.top-controls-right {
+		position: absolute;
+		top: 16px;
+		right: 16px;
 		z-index: 1;
 		display: flex;
 		align-items: center;
