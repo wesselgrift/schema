@@ -19,6 +19,7 @@ export type PageNodeData = {
 
 export type PageFlowEdgeData = {
 	label?: string;
+	labelPosition?: number;
 	labelSelected?: boolean;
 };
 

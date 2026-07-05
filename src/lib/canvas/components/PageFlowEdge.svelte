@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import {
 		BaseEdge,
 		EdgeLabel,
@@ -31,7 +32,15 @@
 	const HANDLE_OFFSET = 12;
 	const CARD_EDGE_OVERLAP = 16;
 	const EDGE_ENDPOINT_INSET = HANDLE_OFFSET + CARD_EDGE_OVERLAP;
+	const LABEL_POSITION_SAMPLES = 96;
+	const LABEL_DRAG_THRESHOLD = 4;
 	let labelTextarea = $state<HTMLTextAreaElement | undefined>();
+	let interactionPath = $state<SVGPathElement | undefined>();
+	let isEditing = $state(false);
+	let dragPointerId: number | undefined;
+	let labelDragStart: { x: number; y: number } | undefined;
+	let hasDraggedLabel = false;
+	let labelWasSelectedOnPointerdown = false;
 
 	function getCardEdgePoint(x: number, y: number, position: Position) {
 		switch (position) {
@@ -49,7 +58,7 @@
 	let sourcePoint = $derived(getCardEdgePoint(sourceX, sourceY, sourcePosition));
 	let targetPoint = $derived(getCardEdgePoint(targetX, targetY, targetPosition));
 
-	let [path, labelX, labelY] = $derived(
+	let bezierPath = $derived(
 		getBezierPath({
 			sourceX: sourcePoint.x,
 			sourceY: sourcePoint.y,
@@ -59,14 +68,40 @@
 			targetPosition
 		})
 	);
+	let path = $derived(bezierPath[0]);
+	let fallbackLabelX = $derived(bezierPath[1]);
+	let fallbackLabelY = $derived(bezierPath[2]);
+	let labelPosition = $derived(clampLabelPosition(data?.labelPosition ?? 0.5));
+	let labelPoint = $derived(getPathPoint(path, labelPosition));
 
-	function stopCanvasEvent(event: Event) {
-		event.stopPropagation();
+	function clampLabelPosition(position: number) {
+		return Math.min(Math.max(position, 0), 1);
 	}
 
-	function selectLabel(event: Event) {
-		event.stopPropagation();
+	function getPathLength(pathElement: SVGPathElement): number | undefined {
+		try {
+			const totalLength = pathElement.getTotalLength();
+			return Number.isFinite(totalLength) && totalLength > 0 ? totalLength : undefined;
+		} catch {
+			return undefined;
+		}
+	}
 
+	function getPathPoint(pathData: string, position: number) {
+		if (!interactionPath || pathData === '') {
+			return { x: fallbackLabelX, y: fallbackLabelY };
+		}
+
+		const totalLength = getPathLength(interactionPath);
+		if (!totalLength) {
+			return { x: fallbackLabelX, y: fallbackLabelY };
+		}
+
+		const point = interactionPath.getPointAtLength(totalLength * position);
+		return { x: point.x, y: point.y };
+	}
+
+	function selectLabel() {
 		updateEdge(id, (edge) => ({
 			...edge,
 			selected: false,
@@ -77,16 +112,21 @@
 		}));
 	}
 
-	function focusLabel(event: Event) {
+	async function enterLabelEditMode(event: Event) {
 		event.preventDefault();
 		event.stopPropagation();
+		isEditing = true;
+		await tick();
 		labelTextarea?.focus({ preventScroll: true });
+		labelTextarea?.select();
 	}
 
 	function handleLabelWrapperKeydown(event: KeyboardEvent) {
 		if (event.key !== 'Enter' && event.key !== ' ') return;
 
-		focusLabel(event);
+		event.preventDefault();
+		event.stopPropagation();
+		selectLabel();
 	}
 
 	function addLabel(event: Event) {
@@ -98,9 +138,11 @@
 			...edge,
 			data: {
 				...edge.data,
-				label: ''
+				label: '',
+				labelPosition: 0.5
 			}
 		}));
+		isEditing = true;
 	}
 
 	let labelRows = $derived((data?.label ?? '').split('\n').length);
@@ -121,8 +163,13 @@
 
 		if (event.key === 'Escape') {
 			event.preventDefault();
+			isEditing = false;
 			event.currentTarget.blur();
 		}
+	}
+
+	function handleLabelBlur() {
+		isEditing = false;
 	}
 
 	function handleInteractionKeydown(event: KeyboardEvent) {
@@ -139,6 +186,16 @@
 		return () => {
 			element.removeEventListener('dblclick', addLabel);
 			element.removeEventListener('keydown', handleInteractionKeydown);
+		};
+	}
+
+	function trackInteractionPath(element: SVGPathElement) {
+		interactionPath = element;
+
+		return () => {
+			if (interactionPath === element) {
+				interactionPath = undefined;
+			}
 		};
 	}
 
@@ -163,6 +220,134 @@
 				labelTextarea = undefined;
 			}
 		};
+	}
+
+	function getSvgPoint(event: PointerEvent) {
+		const svg = interactionPath?.ownerSVGElement;
+		const screenMatrix = svg?.getScreenCTM();
+		if (!svg || !screenMatrix) return undefined;
+
+		const point = svg.createSVGPoint();
+		point.x = event.clientX;
+		point.y = event.clientY;
+
+		return point.matrixTransform(screenMatrix.inverse());
+	}
+
+	function getNearestPathPosition(point: DOMPoint) {
+		const pathElement = interactionPath;
+		if (!pathElement) return labelPosition;
+
+		const totalLength = getPathLength(pathElement);
+		if (!totalLength) return labelPosition;
+
+		let nearestPosition = labelPosition;
+		let nearestDistance = Infinity;
+
+		for (let sample = 0; sample <= LABEL_POSITION_SAMPLES; sample += 1) {
+			const position = sample / LABEL_POSITION_SAMPLES;
+			const pathPoint = pathElement.getPointAtLength(totalLength * position);
+			const distance = (pathPoint.x - point.x) ** 2 + (pathPoint.y - point.y) ** 2;
+
+			if (distance < nearestDistance) {
+				nearestDistance = distance;
+				nearestPosition = position;
+			}
+		}
+
+		return nearestPosition;
+	}
+
+	function updateLabelPositionFromPointer(event: PointerEvent) {
+		const point = getSvgPoint(event);
+		if (!point) return;
+
+		const nextPosition = getNearestPathPosition(point);
+
+		updateEdge(id, (edge) => ({
+			...edge,
+			selected: false,
+			data: {
+				...edge.data,
+				labelPosition: nextPosition,
+				labelSelected: true
+			}
+		}));
+	}
+
+	function resetLabelDrag() {
+		dragPointerId = undefined;
+		labelDragStart = undefined;
+		hasDraggedLabel = false;
+		labelWasSelectedOnPointerdown = false;
+	}
+
+	function releaseLabelPointerCapture(element: HTMLElement, pointerId: number) {
+		if (element.hasPointerCapture(pointerId)) {
+			element.releasePointerCapture(pointerId);
+		}
+	}
+
+	function handleLabelPointerdown(event: PointerEvent & { currentTarget: HTMLElement }) {
+		event.stopPropagation();
+		if (isEditing) return;
+
+		event.preventDefault();
+
+		labelWasSelectedOnPointerdown = Boolean(data?.labelSelected || selected);
+		if (!labelWasSelectedOnPointerdown) {
+			selectLabel();
+		}
+
+		dragPointerId = event.pointerId;
+		labelDragStart = { x: event.clientX, y: event.clientY };
+		hasDraggedLabel = false;
+		event.currentTarget.setPointerCapture(event.pointerId);
+	}
+
+	function handleLabelPointermove(event: PointerEvent & { currentTarget: HTMLElement }) {
+		event.stopPropagation();
+
+		if (isEditing || dragPointerId !== event.pointerId) return;
+
+		event.preventDefault();
+		if (!hasDraggedLabel) {
+			const distanceX = event.clientX - (labelDragStart?.x ?? event.clientX);
+			const distanceY = event.clientY - (labelDragStart?.y ?? event.clientY);
+			if (distanceX ** 2 + distanceY ** 2 < LABEL_DRAG_THRESHOLD ** 2) return;
+
+			hasDraggedLabel = true;
+		}
+
+		updateLabelPositionFromPointer(event);
+	}
+
+	function handleLabelPointerup(event: PointerEvent & { currentTarget: HTMLElement }) {
+		event.stopPropagation();
+
+		if (dragPointerId !== event.pointerId) return;
+
+		const shouldEdit = labelWasSelectedOnPointerdown && !hasDraggedLabel;
+		releaseLabelPointerCapture(event.currentTarget, event.pointerId);
+		resetLabelDrag();
+
+		if (shouldEdit) {
+			void enterLabelEditMode(event);
+		}
+	}
+
+	function handleLabelPointercancel(event: PointerEvent & { currentTarget: HTMLElement }) {
+		event.stopPropagation();
+
+		if (dragPointerId === event.pointerId) {
+			releaseLabelPointerCapture(event.currentTarget, event.pointerId);
+			resetLabelDrag();
+		}
+	}
+
+	function handleLabelClick(event: Event) {
+		event.stopPropagation();
+		selectLabel();
 	}
 </script>
 
@@ -190,43 +375,46 @@
 	role="button"
 	tabindex="0"
 	aria-label="Add connector label"
+	{@attach trackInteractionPath}
 	{@attach labelInteractionAttachment}
 />
 
 {#if data?.label !== undefined}
-	<EdgeLabel x={labelX} y={labelY} selectEdgeOnClick>
+	<EdgeLabel x={labelPoint.x} y={labelPoint.y} selectEdgeOnClick>
 		<div
 			class="page-flow-label nodrag nopan"
 			data-edge-id={id}
 			role="button"
 			tabindex="0"
 			aria-label="Select connector label"
-			onpointerdown={selectLabel}
-			onclick={selectLabel}
-			ondblclick={focusLabel}
+			onpointerdown={handleLabelPointerdown}
+			onpointermove={handleLabelPointermove}
+			onpointerup={handleLabelPointerup}
+			onpointercancel={handleLabelPointercancel}
+			onlostpointercapture={handleLabelPointercancel}
+			onclick={handleLabelClick}
+			ondblclick={enterLabelEditMode}
 			onkeydown={handleLabelWrapperKeydown}
 		>
 			<textarea
 				{@attach trackLabelTextarea}
-				{@attach labelFocusAttachment(data.label === '')}
+				{@attach labelFocusAttachment(data.label === '' && isEditing)}
 				value={data.label}
 				placeholder="Label"
 				aria-label="Flow label"
 				rows={labelRows}
+				readonly={!isEditing}
 				class={[
-					'page-flow-label-input nodrag nopan resize-none overflow-hidden rounded-lg border-0 bg-muted px-2 py-1 text-xs text-black shadow-none placeholder:text-muted-foreground focus-visible:outline-none',
+					'page-flow-label-input nodrag nopan resize-none overflow-hidden rounded-lg border-2 border-transparent bg-muted px-2 py-1 text-xs text-black shadow-none placeholder:text-muted-foreground focus-visible:outline-none',
 					{
-						'bg-blue-500! text-white! placeholder:text-white/70!': isLabelSelected
+						'border-blue-500!': isLabelSelected
 					}
 				]}
 				oninput={handleLabelInput}
 				onkeydown={handleLabelKeydown}
-				onpointerdown={selectLabel}
-				onpointermove={stopCanvasEvent}
-				onpointerup={stopCanvasEvent}
-				onpointercancel={stopCanvasEvent}
-				onclick={selectLabel}
-				ondblclick={focusLabel}
+				onblur={handleLabelBlur}
+				onclick={handleLabelClick}
+				ondblclick={enterLabelEditMode}
 			></textarea>
 		</div>
 	</EdgeLabel>
@@ -251,16 +439,17 @@
 	}
 
 	:global(.svelte-flow__edge.selected .page-flow-label-input) {
-		background-color: var(--color-blue-500);
-		color: white;
-	}
-
-	:global(.svelte-flow__edge.selected .page-flow-label-input::placeholder) {
-		color: rgb(255 255 255 / 0.7);
+		border-color: var(--color-blue-500);
 	}
 
 	.page-flow-label-input {
+		cursor: text;
 		field-sizing: content;
 		max-width: 15rem;
+	}
+
+	.page-flow-label,
+	.page-flow-label-input:read-only {
+		cursor: pointer;
 	}
 </style>
