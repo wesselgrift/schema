@@ -359,7 +359,7 @@
 	interactionWidth={0}
 	{style}
 	class={[
-		'page-flow-edge stroke-2! transition-colors',
+		'page-flow-edge stroke-2! transition-colors stroke-muted',
 		{
 			'stroke-blue-500!': selected
 		}
@@ -380,9 +380,9 @@
 />
 
 {#if data?.label !== undefined}
-	<EdgeLabel x={labelPoint.x} y={labelPoint.y} selectEdgeOnClick>
+	<EdgeLabel class="bg-transparent" x={labelPoint.x} y={labelPoint.y} selectEdgeOnClick>
 		<div
-			class="page-flow-label nodrag nopan"
+			class="page-flow-label nodrag nopan p-0 flex"
 			data-edge-id={id}
 			role="button"
 			tabindex="0"
@@ -407,7 +407,7 @@
 				class={[
 					'page-flow-label-input nodrag nopan resize-none overflow-hidden rounded-lg border-2 border-transparent bg-muted px-2 py-1 text-xs text-black shadow-none placeholder:text-muted-foreground focus-visible:outline-none',
 					{
-						'border-blue-500!': isLabelSelected
+						'bg-white border-blue-500!': isLabelSelected
 					}
 				]}
 				oninput={handleLabelInput}

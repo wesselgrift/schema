@@ -96,7 +96,7 @@
 	class={[
 		'page-card group/page-card w-[270px] overflow-visible rounded-lg border-2 border-border bg-card shadow-[var(--shadow-card)]',
 		{
-			'selected border-blue-400!': selected
+			'selected border-blue-500!': selected
 		}
 	]}
 >
@@ -104,7 +104,7 @@
 		class={[
 			'page-header-row flex min-h-10 w-full cursor-grab touch-none items-center gap-0.5 rounded-t-md px-1 select-none active:cursor-grabbing',
 			{
-				'bg-blue-50': selected,
+				'bg-muted/80': selected,
 				'bg-muted/50': !selected
 			}
 		]}
