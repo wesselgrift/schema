@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	createSectionNode,
 	createPageFlowEdge,
+	getNextNumericEdgeId,
 	getNextNumericSectionId,
 	getNodeAbsolutePosition,
 	getNextNumericPageId,
@@ -132,6 +133,17 @@ describe('canvas flow helpers', () => {
 			getNextNumericPageId([{ ...pageToNode(createPage(1, { x: 0, y: 0 })), id: 'draft' }])
 		).toBe(1);
 		expect(pageIdToNodeId(12)).toBe('page-12');
+	});
+
+	test('finds the next numeric edge id from edge ids', () => {
+		expect(
+			getNextNumericEdgeId([
+				createPageFlowEdge('edge-1', { source: 'page-1', target: 'page-2' }),
+				createPageFlowEdge('edge-4', { source: 'page-2', target: 'page-3' })
+			])
+		).toBe(5);
+		expect(getNextNumericEdgeId([])).toBe(1);
+		expect(getNextNumericEdgeId([{ id: 'not-an-edge' }])).toBe(1);
 	});
 
 	test('creates a section node with default dimensions', () => {

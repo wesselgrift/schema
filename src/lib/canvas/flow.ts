@@ -245,6 +245,19 @@ export function getNextNumericPageId(nodes: Pick<Node, 'id'>[]): number {
 	return pageIds.length === 0 ? 1 : Math.max(...pageIds) + 1;
 }
 
+export function nodeIdToEdgeNumber(edgeId: string): number | null {
+	const match = /^edge-(\d+)$/.exec(edgeId);
+	if (!match) return null;
+
+	return Number(match[1]);
+}
+
+export function getNextNumericEdgeId(edges: Pick<Edge, 'id'>[]): number {
+	const edgeIds = edges.map((edge) => nodeIdToEdgeNumber(edge.id)).filter((id): id is number => id !== null);
+
+	return edgeIds.length === 0 ? 1 : Math.max(...edgeIds) + 1;
+}
+
 export function getNextNumericSectionId(nodes: Pick<Node, 'id'>[]): number {
 	const sectionIds = nodes.map((node) => nodeIdToSectionId(node.id)).filter((id): id is number => id !== null);
 

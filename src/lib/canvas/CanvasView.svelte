@@ -3,11 +3,14 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
+		AlertCircleIcon,
+		CheckmarkCircle02Icon,
 		ChevronDownIcon,
 		Cursor02Icon,
 		FileAddIcon,
 		FileExportIcon,
 		GroupIcon,
+		Loading03Icon,
 		Refresh01Icon,
 		Search01Icon
 	} from '@hugeicons/core-free-icons';
@@ -36,6 +39,8 @@
 		SECTION_NODE_TYPE,
 		createSectionNode,
 		createPageFlowEdge,
+		getNextNumericEdgeId,
+		getNextNumericPageId,
 		getNextNumericSectionId,
 		getNodeAbsolutePosition,
 		hasPageFlowEdge,
@@ -55,6 +60,15 @@
 	import PageFlowNode from './components/PageFlowNode.svelte';
 	import SectionFlowNodeComponent from './components/SectionFlowNode.svelte';
 	import ExportSpecDialog from './ExportSpecDialog.svelte';
+	import {
+		createEmptyStore,
+		getActiveCanvas,
+		loadStore,
+		persistActiveCanvas,
+		serializeEdge,
+		serializeNode,
+		type StoredState
+	} from './persistence';
 
 	type Tool = 'select' | 'add-page' | 'add-section';
 	type SectionDragState = {
@@ -80,17 +94,91 @@
 	const INITIAL_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
 	const SECTION_CLICK_DRAG_THRESHOLD = 8;
 
-	let nodes = $state.raw<CanvasFlowNode[]>([]);
-	let edges = $state.raw<PageFlowEdgeType[]>([]);
-	let viewport = $state<Viewport>({ ...INITIAL_VIEWPORT });
+	type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+	let store: StoredState = loadStore() ?? createEmptyStore();
+	const activeCanvas = getActiveCanvas(store);
+
+	let nodes = $state.raw<CanvasFlowNode[]>(orderNodesForParenting(activeCanvas.nodes));
+	let edges = $state.raw<PageFlowEdgeType[]>(activeCanvas.edges);
+	let viewport = $state<Viewport>({ ...INITIAL_VIEWPORT, ...activeCanvas.viewport });
 	let activeTool = $state<Tool>('select');
-	let nextPageId = 1;
-	let nextEdgeId = 1;
+	let nextPageId = getNextNumericPageId(activeCanvas.nodes);
+	let nextEdgeId = getNextNumericEdgeId(activeCanvas.edges);
 	let flowWrapper: HTMLElement | undefined;
 	let selectionStart: { x: number; y: number } | null = null;
 	let sectionDrag = $state<SectionDragState | null>(null);
 	let isExportOpen = $state(false);
-	let projectName = $state('Untitled project');
+	let projectName = $state(activeCanvas.name);
+
+	let saveStatus = $state<SaveStatus>('idle');
+	let saveTimer: ReturnType<typeof setTimeout> | undefined;
+	let hideTimer: ReturnType<typeof setTimeout> | undefined;
+	let pendingVisible = false;
+	let lastContentSnapshot = serializeContent();
+	let lastViewportSnapshot = serializeViewport();
+
+	const SAVE_DEBOUNCE_MS = 500;
+	const SAVED_VISIBLE_MS = 1200;
+
+	function serializeContent(): string {
+		return JSON.stringify({
+			name: projectName,
+			nodes: nodes.map(serializeNode),
+			edges: edges.map(serializeEdge)
+		});
+	}
+
+	function serializeViewport(): string {
+		return JSON.stringify(viewport);
+	}
+
+	function scheduleSave(visible: boolean) {
+		if (visible) {
+			pendingVisible = true;
+			clearTimeout(hideTimer);
+			saveStatus = 'saving';
+		}
+
+		clearTimeout(saveTimer);
+		saveTimer = setTimeout(() => {
+			try {
+				store = persistActiveCanvas(store, { name: projectName, nodes, edges, viewport });
+				if (pendingVisible) {
+					saveStatus = 'saved';
+					clearTimeout(hideTimer);
+					hideTimer = setTimeout(() => (saveStatus = 'idle'), SAVED_VISIBLE_MS);
+				}
+			} catch {
+				saveStatus = 'error';
+			} finally {
+				pendingVisible = false;
+			}
+		}, SAVE_DEBOUNCE_MS);
+	}
+
+	$effect(() => {
+		const snapshot = serializeContent();
+		if (snapshot === lastContentSnapshot) return;
+
+		lastContentSnapshot = snapshot;
+		scheduleSave(true);
+	});
+
+	$effect(() => {
+		const snapshot = serializeViewport();
+		if (snapshot === lastViewportSnapshot) return;
+
+		lastViewportSnapshot = snapshot;
+		scheduleSave(false);
+	});
+
+	$effect(() => {
+		return () => {
+			clearTimeout(saveTimer);
+			clearTimeout(hideTimer);
+		};
+	});
 
 	let zoomPercent = $derived(Math.round(viewport.zoom * 100));
 	let sectionMarquee = $derived.by<MarqueeRect | null>(() => {
@@ -622,6 +710,46 @@
 	</div>
 
 	<div class="top-controls-right" role="group" aria-label="Export controls">
+		{#if saveStatus !== 'idle'}
+			<span
+				class="save-status text-muted-foreground"
+				aria-live="polite"
+				title={saveStatus === 'saving'
+					? 'Saving'
+					: saveStatus === 'saved'
+						? 'Saved'
+						: 'Save failed'}
+			>
+				{#if saveStatus === 'saving'}
+					<HugeiconsIcon
+						icon={Loading03Icon}
+						class="animate-spin"
+						size={16}
+						strokeWidth={2}
+						aria-hidden="true"
+					/>
+					<span class="sr-only">Saving</span>
+				{:else if saveStatus === 'saved'}
+					<HugeiconsIcon
+						icon={CheckmarkCircle02Icon}
+						class="text-green-600"
+						size={16}
+						strokeWidth={2}
+						aria-hidden="true"
+					/>
+					<span class="sr-only">Saved</span>
+				{:else}
+					<HugeiconsIcon
+						icon={AlertCircleIcon}
+						class="text-destructive"
+						size={16}
+						strokeWidth={2}
+						aria-hidden="true"
+					/>
+					<span class="sr-only">Save failed</span>
+				{/if}
+			</span>
+		{/if}
 		<Button
 			type="button"
 			variant="outline"
@@ -754,6 +882,13 @@
 		z-index: 1;
 		display: flex;
 		align-items: center;
+		gap: 8px;
+	}
+
+	.save-status {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	:global(.floating-control-button) {
