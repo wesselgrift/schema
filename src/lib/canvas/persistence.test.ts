@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	STORAGE_KEY,
+	createCanvas,
 	createEmptyStore,
+	deleteCanvas,
 	getActiveCanvas,
+	listCanvases,
 	loadStore,
 	persistActiveCanvas,
+	switchActiveCanvas,
 	type CanvasPatch
 } from './persistence';
 import {
@@ -132,5 +136,95 @@ describe('canvas persistence', () => {
 		localStorage.setItem(STORAGE_KEY, 'not json');
 
 		expect(loadStore()).toBeNull();
+	});
+});
+
+describe('multi-canvas management', () => {
+	beforeEach(() => {
+		localStorage.clear();
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	function advance() {
+		vi.setSystemTime(new Date(Date.now() + 1000));
+	}
+
+	test('lists canvases sorted by createdAt ascending', () => {
+		let store = createEmptyStore();
+		const firstId = store.activeCanvasId;
+		advance();
+		store = createCanvas(store);
+		const secondId = store.activeCanvasId;
+
+		expect(listCanvases(store).map((canvas) => canvas.id)).toEqual([firstId, secondId]);
+	});
+
+	test('creates a new canvas and makes it active', () => {
+		const store = createEmptyStore();
+		const originalId = store.activeCanvasId;
+		advance();
+		const next = createCanvas(store);
+
+		expect(Object.keys(next.canvases)).toHaveLength(2);
+		expect(next.activeCanvasId).not.toBe(originalId);
+		expect(getActiveCanvas(next).name).toBe('Untitled project');
+	});
+
+	test('switches the active canvas', () => {
+		let store = createEmptyStore();
+		const firstId = store.activeCanvasId;
+		advance();
+		store = createCanvas(store);
+
+		const switched = switchActiveCanvas(store, firstId);
+		expect(switched.activeCanvasId).toBe(firstId);
+	});
+
+	test('deleting a non-active canvas keeps the active canvas', () => {
+		let store = createEmptyStore();
+		const firstId = store.activeCanvasId;
+		advance();
+		store = createCanvas(store);
+		const secondId = store.activeCanvasId;
+
+		const next = deleteCanvas(store, firstId);
+		expect(Object.keys(next.canvases)).toEqual([secondId]);
+		expect(next.activeCanvasId).toBe(secondId);
+	});
+
+	test('deleting the active canvas falls back to the most recently updated remaining', () => {
+		let store = createEmptyStore();
+		advance();
+		store = createCanvas(store);
+		const bId = store.activeCanvasId;
+		advance();
+		store = createCanvas(store);
+		const cId = store.activeCanvasId;
+
+		advance();
+		store = switchActiveCanvas(store, bId);
+		store = persistActiveCanvas(store, buildPatch({ name: 'B touched' }));
+
+		store = switchActiveCanvas(store, cId);
+		expect(store.activeCanvasId).toBe(cId);
+
+		const next = deleteCanvas(store, cId);
+		expect(next.canvases[cId]).toBeUndefined();
+		expect(next.activeCanvasId).toBe(bId);
+	});
+
+	test('deleting the last canvas seeds a fresh empty active canvas', () => {
+		const store = createEmptyStore();
+		const onlyId = store.activeCanvasId;
+
+		const next = deleteCanvas(store, onlyId);
+		expect(Object.keys(next.canvases)).toHaveLength(1);
+		expect(next.canvases[onlyId]).toBeUndefined();
+		expect(getActiveCanvas(next)).toMatchObject({ name: 'Untitled project', nodes: [], edges: [] });
 	});
 });

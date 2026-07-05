@@ -116,23 +116,28 @@ function isStoredState(value: unknown): value is StoredState {
 	);
 }
 
-export function createEmptyStore(): StoredState {
-	const id = createId();
+function createEmptyCanvas(): StoredCanvas {
 	const now = Date.now();
 
 	return {
+		id: createId(),
+		name: DEFAULT_CANVAS_NAME,
+		nodes: [],
+		edges: [],
+		viewport: { ...DEFAULT_VIEWPORT },
+		createdAt: now,
+		updatedAt: now
+	};
+}
+
+export function createEmptyStore(): StoredState {
+	const canvas = createEmptyCanvas();
+
+	return {
 		version: STORAGE_VERSION,
-		activeCanvasId: id,
+		activeCanvasId: canvas.id,
 		canvases: {
-			[id]: {
-				id,
-				name: DEFAULT_CANVAS_NAME,
-				nodes: [],
-				edges: [],
-				viewport: { ...DEFAULT_VIEWPORT },
-				createdAt: now,
-				updatedAt: now
-			}
+			[canvas.id]: canvas
 		}
 	};
 }
@@ -188,6 +193,65 @@ export function persistActiveCanvas(store: StoredState, patch: CanvasPatch): Sto
 			[existing.id]: updated
 		}
 	};
+
+	writeStore(next);
+	return next;
+}
+
+export function listCanvases(store: StoredState): StoredCanvas[] {
+	return Object.values(store.canvases).sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export function createCanvas(store: StoredState): StoredState {
+	const canvas = createEmptyCanvas();
+
+	const next: StoredState = {
+		...store,
+		activeCanvasId: canvas.id,
+		canvases: {
+			...store.canvases,
+			[canvas.id]: canvas
+		}
+	};
+
+	writeStore(next);
+	return next;
+}
+
+export function switchActiveCanvas(store: StoredState, id: string): StoredState {
+	if (!store.canvases[id] || id === store.activeCanvasId) return store;
+
+	const next: StoredState = { ...store, activeCanvasId: id };
+
+	writeStore(next);
+	return next;
+}
+
+export function deleteCanvas(store: StoredState, id: string): StoredState {
+	if (!store.canvases[id]) return store;
+
+	const remaining = { ...store.canvases };
+	delete remaining[id];
+
+	if (Object.keys(remaining).length === 0) {
+		const canvas = createEmptyCanvas();
+		const next: StoredState = {
+			...store,
+			activeCanvasId: canvas.id,
+			canvases: { [canvas.id]: canvas }
+		};
+
+		writeStore(next);
+		return next;
+	}
+
+	let activeCanvasId = store.activeCanvasId;
+	if (activeCanvasId === id) {
+		const mostRecent = Object.values(remaining).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+		activeCanvasId = mostRecent.id;
+	}
+
+	const next: StoredState = { ...store, activeCanvasId, canvases: remaining };
 
 	writeStore(next);
 	return next;

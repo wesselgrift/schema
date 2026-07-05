@@ -3,16 +3,19 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
+		Add01Icon,
 		AlertCircleIcon,
 		CheckmarkCircle02Icon,
 		ChevronDownIcon,
 		Cursor02Icon,
+		Delete02Icon,
 		FileAddIcon,
 		FileExportIcon,
 		GroupIcon,
 		Loading03Icon,
 		Refresh01Icon,
-		Search01Icon
+		Search01Icon,
+		Tick01Icon
 	} from '@hugeicons/core-free-icons';
 	import {
 		Background,
@@ -61,14 +64,20 @@
 	import SectionFlowNodeComponent from './components/SectionFlowNode.svelte';
 	import ExportSpecDialog from './ExportSpecDialog.svelte';
 	import {
+		createCanvas,
 		createEmptyStore,
+		deleteCanvas,
 		getActiveCanvas,
+		listCanvases,
 		loadStore,
 		persistActiveCanvas,
 		serializeEdge,
 		serializeNode,
+		switchActiveCanvas,
+		type StoredCanvas,
 		type StoredState
 	} from './persistence';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	type Tool = 'select' | 'add-page' | 'add-section';
 	type SectionDragState = {
@@ -96,8 +105,13 @@
 
 	type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-	let store: StoredState = loadStore() ?? createEmptyStore();
-	const activeCanvas = getActiveCanvas(store);
+	const initialStore = loadStore() ?? createEmptyStore();
+	const activeCanvas = getActiveCanvas(initialStore);
+
+	let store = $state<StoredState>(initialStore);
+
+	let canvases = $derived(listCanvases(store));
+	let menuOpen = $state(false);
 
 	let nodes = $state.raw<CanvasFlowNode[]>(orderNodesForParenting(activeCanvas.nodes));
 	let edges = $state.raw<PageFlowEdgeType[]>(activeCanvas.edges);
@@ -179,6 +193,57 @@
 			clearTimeout(hideTimer);
 		};
 	});
+
+	function flushPendingSave() {
+		if (!saveTimer) return;
+
+		clearTimeout(saveTimer);
+		saveTimer = undefined;
+		store = persistActiveCanvas(store, { name: projectName, nodes, edges, viewport });
+	}
+
+	function loadCanvasIntoState(canvas: StoredCanvas) {
+		clearTimeout(saveTimer);
+		clearTimeout(hideTimer);
+		saveTimer = undefined;
+		hideTimer = undefined;
+		pendingVisible = false;
+		saveStatus = 'idle';
+
+		nodes = orderNodesForParenting(canvas.nodes);
+		edges = canvas.edges;
+		viewport = { ...INITIAL_VIEWPORT, ...canvas.viewport };
+		projectName = canvas.name;
+		nextPageId = getNextNumericPageId(canvas.nodes);
+		nextEdgeId = getNextNumericEdgeId(canvas.edges);
+
+		lastContentSnapshot = serializeContent();
+		lastViewportSnapshot = serializeViewport();
+	}
+
+	function switchCanvas(id: string) {
+		menuOpen = false;
+		if (id === store.activeCanvasId) return;
+
+		flushPendingSave();
+		store = switchActiveCanvas(store, id);
+		loadCanvasIntoState(getActiveCanvas(store));
+	}
+
+	function createNewCanvas() {
+		menuOpen = false;
+		flushPendingSave();
+		store = createCanvas(store);
+		loadCanvasIntoState(getActiveCanvas(store));
+	}
+
+	function deleteCanvasById(id: string) {
+		const wasActive = id === store.activeCanvasId;
+		store = deleteCanvas(store, id);
+		if (wasActive) {
+			loadCanvasIntoState(getActiveCanvas(store));
+		}
+	}
 
 	let zoomPercent = $derived(Math.round(viewport.zoom * 100));
 	let sectionMarquee = $derived.by<MarqueeRect | null>(() => {
@@ -696,7 +761,7 @@
 
 	<div class="top-controls gap-2" role="group" aria-label="Project controls">
 		<div
-			class="project-title-control floating-control-button flex h-7 items-center gap-1 rounded-md border border-border bg-background pr-1.5 pl-2 text-xs font-medium text-foreground"
+			class="project-title-control floating-control-button flex h-7 items-center gap-1 rounded-md border border-border bg-background pr-1 pl-2 text-xs font-medium text-foreground"
 		>
 			<input
 				bind:value={projectName}
@@ -705,7 +770,60 @@
 				placeholder="Untitled project"
 				onkeydown={handleProjectTitleKeydown}
 			/>
-			<HugeiconsIcon icon={ChevronDownIcon} size={14} strokeWidth={2} aria-hidden="true" />
+			<DropdownMenu.Root bind:open={menuOpen}>
+				<DropdownMenu.Trigger
+					class="canvas-menu-trigger flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
+					aria-label="Switch canvas"
+				>
+					<HugeiconsIcon icon={ChevronDownIcon} size={14} strokeWidth={2} aria-hidden="true" />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" class="w-56">
+					{#each canvases as canvas (canvas.id)}
+						<div class="canvas-row flex items-center gap-1">
+							<button
+								type="button"
+								class="canvas-row-switch flex h-8 flex-1 items-center gap-2 rounded-sm px-2 text-left text-sm outline-none hover:bg-secondary"
+								onclick={() => switchCanvas(canvas.id)}
+							>
+								<span class="flex size-4 shrink-0 items-center justify-center">
+									{#if canvas.id === store.activeCanvasId}
+										<HugeiconsIcon
+											icon={Tick01Icon}
+											size={14}
+											strokeWidth={2}
+											aria-hidden="true"
+										/>
+									{/if}
+								</span>
+								<span class="truncate">{canvas.name}</span>
+							</button>
+							<button
+								type="button"
+								class="canvas-row-delete flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-secondary hover:text-destructive"
+								aria-label={`Delete ${canvas.name}`}
+								onclick={() => deleteCanvasById(canvas.id)}
+							>
+								<HugeiconsIcon icon={Delete02Icon} size={14} strokeWidth={2} aria-hidden="true" />
+							</button>
+						</div>
+					{/each}
+					<DropdownMenu.Separator />
+					<Button
+						type="button"
+						variant="outline"
+						class="w-full justify-center"
+						onclick={createNewCanvas}
+					>
+						<HugeiconsIcon
+							icon={Add01Icon}
+							data-icon="inline-start"
+							strokeWidth={2}
+							aria-hidden="true"
+						/>
+						New canvas
+					</Button>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 		</div>
 	</div>
 
