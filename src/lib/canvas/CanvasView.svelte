@@ -107,6 +107,9 @@
 	let marqueeRect: SelectionRect | null = $derived(
 		marqueeDrag?.hasDragged ? normalizeRect(marqueeDrag.start, marqueeDrag.current) : null
 	);
+	let visibleSelectedPageIds: number[] = $derived(
+		marqueeRect ? findPagesInRect(pages, marqueeRect) : selectedPageIds
+	);
 	let surfaceCursor = $derived(
 		drag || selectionDrag ? 'grabbing' : isPanActive ? 'grab' : activeTool === 'select' ? 'default' : 'crosshair'
 	);
@@ -252,6 +255,10 @@
 
 	function isSelected(pageId: number): boolean {
 		return selectedPageIds.includes(pageId);
+	}
+
+	function isVisiblySelected(pageId: number): boolean {
+		return visibleSelectedPageIds.includes(pageId);
 	}
 
 	function selectOnly(pageId: number) {
@@ -753,7 +760,7 @@
 		>
 			{#if marqueeRect}
 				<div
-					class="selection-marquee"
+					class="selection-marquee absolute z-[1] pointer-events-none rounded-sm border border-blue-500 bg-blue-500/10"
 					style:left={`${marqueeRect.x}px`}
 					style:top={`${marqueeRect.y}px`}
 					style:width={`${marqueeRect.width}px`}
@@ -765,7 +772,7 @@
 				<PageCard
 					{page}
 					{screenPoint}
-					selected={isSelected(page.id)}
+					selected={isVisiblySelected(page.id)}
 					pageWidth={PAGE_WIDTH}
 					pageMinHeight={PAGE_MIN_HEIGHT}
 					iconPickerOpen={openIconPickerPageId === page.id}
@@ -896,15 +903,6 @@
 		inset: 0;
 		transform-origin: 0 0;
 		will-change: transform;
-	}
-
-	.selection-marquee {
-		position: absolute;
-		z-index: 1;
-		border: 1px solid var(--selection-border);
-		border-radius: var(--radius-sm);
-		background: var(--selection);
-		pointer-events: none;
 	}
 
 	.top-controls {
