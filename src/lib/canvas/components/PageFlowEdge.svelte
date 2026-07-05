@@ -84,6 +84,7 @@
 	}
 
 	let labelRows = $derived((data?.label ?? '').split('\n').length);
+	let isLabelSelected = $derived(data?.labelSelected || selected);
 
 	function handleLabelInput(event: Event & { currentTarget: HTMLTextAreaElement }) {
 		updateEdge(id, (edge) => ({
@@ -195,7 +196,7 @@
 				class={[
 					'page-flow-label-input nodrag nopan resize-none overflow-hidden rounded-lg border-0 bg-muted px-2 py-1 text-xs text-black shadow-none placeholder:text-muted-foreground focus-visible:outline-none',
 					{
-						'bg-blue-500! text-white! placeholder:text-white/70!': data.labelSelected
+						'bg-blue-500! text-white! placeholder:text-white/70!': isLabelSelected
 					}
 				]}
 				oninput={handleLabelInput}
@@ -224,13 +225,22 @@
 	}
 
 	:global(.svelte-flow__edge:has(.page-flow-edge-interaction:hover) .page-flow-edge),
-	:global(.svelte-flow__edge:has(.page-flow-edge-interaction:focus-visible) .page-flow-edge) {
+	:global(.svelte-flow__edge:has(.page-flow-edge-interaction:focus-visible) .page-flow-edge),
+	:global(.svelte-flow__edge.selected .page-flow-edge) {
 		stroke: var(--color-blue-500);
+	}
+
+	:global(.svelte-flow__edge.selected .page-flow-label-input) {
+		background-color: var(--color-blue-500);
+		color: white;
+	}
+
+	:global(.svelte-flow__edge.selected .page-flow-label-input::placeholder) {
+		color: rgb(255 255 255 / 0.7);
 	}
 
 	.page-flow-label-input {
 		field-sizing: content;
-		min-width: 3rem;
 		max-width: 15rem;
 	}
 </style>

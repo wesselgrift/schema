@@ -164,7 +164,7 @@
 
 		edges = edges.map((edge) =>
 			selectedLabelEdgeIds.includes(edge.id)
-				? { ...edge, selected: false, data: { ...edge.data, labelSelected: true } }
+				? { ...edge, data: { ...edge.data, labelSelected: true } }
 				: edge
 		);
 	}
