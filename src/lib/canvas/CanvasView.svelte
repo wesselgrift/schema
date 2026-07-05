@@ -694,6 +694,7 @@
 		width: 100%;
 		height: 100%;
 		background: var(--background);
+		--xy-selection-border: 1px solid hsl(217 91% 60%);
 	}
 
 	:global(.canvas-flow .svelte-flow__pane) {
@@ -708,8 +709,7 @@
 		position: fixed;
 		z-index: 2;
 		pointer-events: none;
-		border: 1px dashed hsl(217 91% 60%);
-		border-radius: 16px;
+		border: 1px solid hsl(217 91% 60%);
 		background: hsl(217 91% 60% / 0.08);
 		box-shadow: inset 0 0 0 1px hsl(217 91% 60% / 0.16);
 	}

@@ -75,12 +75,13 @@
 	}
 </script>
 
-<NodeToolbar nodeId={id} position={Position.Top} offset={10} isVisible>
+<NodeToolbar nodeId={id} position={Position.Top} align="start" offset={10} isVisible>
 	<input
 		{@attach titleFocusAttachment(data.focusTitle)}
-		class="nodrag nopan max-w-56 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground shadow-sm outline-none select-text focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+		class="section-flow-title-input nodrag nopan rounded-md border border-2 border-muted bg-muted px-2 py-1 text-xs font-semibold text-foreground outline-none select-text focus:border-2 focus:border-blue-500 focus:bg-white placeholder:text-muted-foreground"
 		aria-label={`Section ${data.sectionId} title`}
 		value={data.title}
+		placeholder="Section"
 		onpointerdown={stopCanvasEvent}
 		onpointermove={stopCanvasEvent}
 		onpointerup={stopCanvasEvent}
@@ -94,19 +95,25 @@
 	minWidth={MIN_SECTION_SIZE.width}
 	minHeight={MIN_SECTION_SIZE.height}
 	isVisible={selected}
-	lineClass="border-blue-400"
-	handleClass="h-2.5! w-2.5! border-blue-400! bg-background!"
+	lineClass="border-blue-500"
+	handleClass="h-2.5! w-2.5! border-blue-500! bg-background!"
 	onResize={(_, params) => syncSectionSize(params)}
 	onResizeEnd={(_, params) => syncSectionSize(params)}
 />
 
 <div
 	class={[
-		'section-flow-node h-full w-full rounded-2xl border-2 border-dashed bg-muted/20 transition-colors',
+		'section-flow-node h-full w-full rounded-2xl border-2 border-border bg-muted/20 transition-colors',
 		{
-			'border-blue-400 bg-blue-50/60 shadow-[0_0_0_1px_hsl(217_91%_60%_/_0.12)]': isActive,
+			'border-blue-500 bg-blue-50/60 shadow-[0_0_0_1px_hsl(217_91%_60%_/_0.12)]': isActive,
 			'border-border/80': !isActive
 		}
 	]}
 	aria-label={`Section ${data.title}`}
 ></div>
+
+<style>
+	.section-flow-title-input {
+		field-sizing: content;
+	}
+</style>
