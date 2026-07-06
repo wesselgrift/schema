@@ -1,5 +1,5 @@
 :root {
-	--canvas-grid: color-mix(in srgb, var(--primary) 34%, transparent); /* Canvas grid dots. */
+	--canvas-grid: color-mix(in srgb, var(--primary) 50%, transparent); /* Canvas grid dots. */
 	--selection: color-mix(in srgb, var(--primary) 18%, transparent); /* Marquee fill. */
 	--selection-border: color-mix(in srgb, var(--primary) 70%, transparent); /* Marquee border. */
 	--shadow-card: 0 10px 24px rgb(15 23 42 / 14%); /* Page card shadow. */

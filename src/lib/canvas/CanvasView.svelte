@@ -805,7 +805,7 @@
 			<Background
 				variant={BackgroundVariant.Dots}
 				gap={32}
-				size={1.25}
+				size={1.5}
 				patternColor="var(--canvas-grid)"
 			/>
 		</SvelteFlow>
