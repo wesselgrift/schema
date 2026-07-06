@@ -51,11 +51,6 @@
 		iconPickerOpen = false;
 	}
 
-	function handleIconReset() {
-		updateNodeData(id, { icon: 'FileEmpty01Icon' });
-		iconPickerOpen = false;
-	}
-
 	function titleFocusAttachment(shouldFocus: boolean | undefined): Attachment<HTMLInputElement> {
 		return (element) => {
 			if (!shouldFocus) return;
@@ -118,7 +113,6 @@
 				iconPickerOpen = open;
 			}}
 			onIconChange={handleIconChange}
-			onIconReset={handleIconReset}
 			onStopCanvasEvent={stopCanvasEvent}
 		/>
 		<input

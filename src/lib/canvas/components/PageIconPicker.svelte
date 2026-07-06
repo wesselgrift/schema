@@ -12,7 +12,6 @@
 		open: boolean;
 		onOpenChange: (pageId: number, open: boolean) => void;
 		onIconChange: (pageId: number, iconKey: string) => void;
-		onIconReset: (pageId: number) => void;
 		onStopCanvasEvent: (event: Event) => void;
 	}
 
@@ -23,7 +22,6 @@
 		open,
 		onOpenChange,
 		onIconChange,
-		onIconReset,
 		onStopCanvasEvent
 	}: Props = $props();
 </script>
@@ -60,19 +58,6 @@
 		onpointercancel={onStopCanvasEvent}
 		onkeydown={onStopCanvasEvent}
 	>
-		<div class="icon-picker-header">
-			<span class="icon-picker-title">Icons</span>
-			<Button
-				type="button"
-				variant="ghost"
-				size="xs"
-				onclick={() => onIconReset(pageId)}
-				onpointerdown={onStopCanvasEvent}
-				onkeydown={onStopCanvasEvent}
-			>
-				Remove
-			</Button>
-		</div>
 		<Command.Root class="icon-picker-command">
 			<Command.Input placeholder="Search icons..." />
 			<Command.List>
@@ -101,21 +86,6 @@
 		width: 17rem;
 		gap: 0.25rem;
 		padding: 0.375rem;
-	}
-
-	.icon-picker-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		padding: 0 0.25rem 0.125rem 0.5rem;
-	}
-
-	.icon-picker-title {
-		color: var(--foreground);
-		font-size: 0.75rem;
-		font-weight: 600;
-		line-height: 1;
 	}
 
 	:global(.icon-picker-command) {

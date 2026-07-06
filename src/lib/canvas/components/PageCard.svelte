@@ -24,7 +24,6 @@
 		onDescriptionInput: (pageId: number, description: string) => void;
 		onIconPickerOpenChange: (pageId: number, open: boolean) => void;
 		onIconChange: (pageId: number, iconKey: string) => void;
-		onIconReset: (pageId: number) => void;
 	}
 
 	let {
@@ -45,8 +44,7 @@
 		onTitleInput,
 		onDescriptionInput,
 		onIconPickerOpenChange,
-		onIconChange,
-		onIconReset
+		onIconChange
 	}: Props = $props();
 </script>
 
@@ -83,7 +81,6 @@
 			open={iconPickerOpen}
 			onOpenChange={onIconPickerOpenChange}
 			onIconChange={onIconChange}
-			onIconReset={onIconReset}
 			onStopCanvasEvent={onStopCanvasEvent}
 		/>
 		<input
