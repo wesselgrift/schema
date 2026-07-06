@@ -218,6 +218,31 @@ export function createCanvas(store: StoredState): StoredState {
 	return next;
 }
 
+export function importCanvas(store: StoredState, patch: CanvasPatch): StoredState {
+	const now = Date.now();
+	const canvas: StoredCanvas = {
+		id: createId(),
+		name: patch.name,
+		nodes: patch.nodes.map(serializeNode),
+		edges: patch.edges.map(serializeEdge),
+		viewport: { x: patch.viewport.x, y: patch.viewport.y, zoom: patch.viewport.zoom },
+		createdAt: now,
+		updatedAt: now
+	};
+
+	const next: StoredState = {
+		...store,
+		activeCanvasId: canvas.id,
+		canvases: {
+			...store.canvases,
+			[canvas.id]: canvas
+		}
+	};
+
+	writeStore(next);
+	return next;
+}
+
 export function switchActiveCanvas(store: StoredState, id: string): StoredState {
 	if (!store.canvases[id] || id === store.activeCanvasId) return store;
 

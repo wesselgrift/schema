@@ -16,6 +16,7 @@
 		Redo02Icon,
 		Refresh01Icon,
 		Search01Icon,
+		Share08Icon,
 		Tick02Icon,
 		Undo02Icon
 	} from '@hugeicons/core-free-icons';
@@ -78,6 +79,7 @@
 		createEmptyStore,
 		deleteCanvas,
 		getActiveCanvas,
+		importCanvas,
 		listCanvases,
 		loadStore,
 		persistActiveCanvas,
@@ -85,6 +87,7 @@
 		type StoredCanvas,
 		type StoredState
 	} from './persistence';
+	import { buildShareUrl, decodeHashToPayload, encodeCanvasToHash, isShareTooLarge } from './share';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	type Tool = 'select' | 'add-page' | 'add-section';
@@ -113,7 +116,12 @@
 
 	type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-	const initialStore = loadStore() ?? createEmptyStore();
+	let initialStore = loadStore() ?? createEmptyStore();
+	const sharedPayload = typeof window !== 'undefined' ? decodeHashToPayload(location.hash) : null;
+	if (sharedPayload) {
+		initialStore = importCanvas(initialStore, sharedPayload);
+		history.replaceState(null, '', location.pathname + location.search);
+	}
 	const activeCanvas = getActiveCanvas(initialStore);
 	const { setViewport } = useSvelteFlow();
 
@@ -134,6 +142,12 @@
 	let sectionDrag = $state<SectionDragState | null>(null);
 	let isExportOpen = $state(false);
 	let projectName = $state(activeCanvas.name);
+
+	type ShareStatus = 'idle' | 'copied' | 'too-large' | 'error';
+	let shareStatus = $state<ShareStatus>('idle');
+	let shareLink = $state('');
+	let shareTimer: ReturnType<typeof setTimeout> | undefined;
+	const SHARE_STATUS_VISIBLE_MS = 2400;
 
 	let saveStatus = $state<SaveStatus>('idle');
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -340,10 +354,22 @@
 	});
 
 	$effect(() => {
+		const onHashChange = () => {
+			const decoded = decodeHashToPayload(location.hash);
+			if (!decoded) return;
+
+			flushPendingSave();
+			store = importCanvas(store, decoded);
+			loadCanvasIntoState(getActiveCanvas(store));
+			history.replaceState(null, '', location.pathname + location.search);
+		};
+		window.addEventListener('hashchange', onHashChange);
 		return () => {
+			window.removeEventListener('hashchange', onHashChange);
 			clearTimeout(saveTimer);
 			clearTimeout(hideTimer);
 			clearTimeout(textTimer);
+			clearTimeout(shareTimer);
 		};
 	});
 
@@ -921,6 +947,42 @@
 		}
 	}
 
+	function setShareStatus(status: ShareStatus) {
+		shareStatus = status;
+		clearTimeout(shareTimer);
+
+		if (status === 'idle') return;
+
+		shareTimer = setTimeout(() => {
+			shareStatus = 'idle';
+			shareLink = '';
+		}, SHARE_STATUS_VISIBLE_MS);
+	}
+
+	async function shareCanvas() {
+		flushPendingSave();
+
+		const encoded = encodeCanvasToHash({ name: projectName, nodes, edges, viewport });
+		const url = buildShareUrl(encoded);
+
+		if (isShareTooLarge(url)) {
+			shareLink = '';
+			setShareStatus('too-large');
+			return;
+		}
+
+		try {
+			if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+
+			await navigator.clipboard.writeText(url);
+			shareLink = '';
+			setShareStatus('copied');
+		} catch {
+			shareLink = url;
+			setShareStatus('error');
+		}
+	}
+
 	function resetView() {
 		setViewport({ ...INITIAL_VIEWPORT });
 	}
@@ -1096,7 +1158,49 @@
 		</div>
 	</div>
 
-	<div class="top-controls-right" role="group" aria-label="Export controls">
+	<div class="top-controls-right" role="group" aria-label="Export and share controls">
+		{#if shareStatus !== 'idle'}
+			<div class="share-feedback" aria-live="polite">
+				<span
+					class="share-status text-xs font-medium"
+					class:text-green-600={shareStatus === 'copied'}
+					class:text-destructive={shareStatus === 'error'}
+					class:text-muted-foreground={shareStatus === 'too-large'}
+				>
+					{#if shareStatus === 'copied'}
+						Link copied
+					{:else if shareStatus === 'too-large'}
+						Canvas too large to share — use Export instead
+					{:else}
+						Couldn't copy — copy the link below
+					{/if}
+				</span>
+				{#if shareStatus === 'error' && shareLink}
+					<input
+						class="share-fallback-input h-7 w-56 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none select-text"
+						type="text"
+						readonly
+						value={shareLink}
+						aria-label="Shareable link"
+						onfocus={(event) => event.currentTarget.select()}
+					/>
+				{/if}
+			</div>
+		{/if}
+		<Button
+			type="button"
+			variant="outline"
+			class="floating-control-button bg-background hover:bg-secondary"
+			onclick={shareCanvas}
+		>
+			<HugeiconsIcon
+				icon={Share08Icon}
+				data-icon="inline-start"
+				strokeWidth={2}
+				aria-hidden="true"
+			/>
+			Share
+		</Button>
 		{#if saveStatus !== 'idle'}
 			<span
 				class="save-status text-muted-foreground"
@@ -1281,6 +1385,20 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.share-feedback {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.share-status {
+		white-space: nowrap;
+	}
+
+	.share-fallback-input {
+		box-shadow: var(--shadow-popover);
 	}
 
 	:global(.floating-control-button) {
