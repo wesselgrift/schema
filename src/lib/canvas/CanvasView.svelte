@@ -430,6 +430,24 @@
 		return createPageFlowEdge(`edge-${nextEdgeId++}`, connection);
 	}
 
+	function handleBeforeReconnect(
+		newEdge: PageFlowEdgeType,
+		oldEdge: PageFlowEdgeType
+	): PageFlowEdgeType | false {
+		if (
+			newEdge.source === oldEdge.source &&
+			newEdge.target === oldEdge.target &&
+			(newEdge.sourceHandle ?? null) === (oldEdge.sourceHandle ?? null) &&
+			(newEdge.targetHandle ?? null) === (oldEdge.targetHandle ?? null)
+		) {
+			return false;
+		}
+
+		if (hasPageFlowEdge(edges, newEdge)) return false;
+
+		return newEdge;
+	}
+
 	const handleBeforeDelete: OnBeforeDelete<CanvasFlowNode, PageFlowEdgeType> = async ({
 		nodes: nodesToDelete,
 		edges: edgesToDelete
@@ -733,6 +751,7 @@
 			aria-label="Canvas. Select pages, connect handles, press P to add a page, or press S to add a section."
 			onpaneclick={handlePaneClick}
 			onbeforeconnect={handleBeforeConnect}
+			onbeforereconnect={handleBeforeReconnect}
 			onbeforedelete={handleBeforeDelete}
 			onselectionchange={handleSelectionChange}
 			onselectionstart={handleSelectionStart}

@@ -3,6 +3,7 @@
 	import {
 		BaseEdge,
 		EdgeLabel,
+		EdgeReconnectAnchor,
 		Position,
 		getBezierPath,
 		useSvelteFlow,
@@ -38,6 +39,7 @@
 	let interactionPath = $state<SVGPathElement | undefined>();
 	let measurePath: SVGPathElement | undefined;
 	let isEditing = $state(false);
+	let reconnecting = $state(false);
 	let dragPointerId: number | undefined;
 	let labelDragStart: { x: number; y: number } | undefined;
 	let hasDraggedLabel = false;
@@ -371,10 +373,24 @@
 	class={[
 		'page-flow-edge stroke-2! transition-colors stroke-muted',
 		{
-			'stroke-blue-500!': selected
+			'stroke-blue-500!': selected,
+			'opacity-0': reconnecting
 		}
 	]}
 />
+
+{#if selected}
+	<EdgeReconnectAnchor
+		bind:reconnecting
+		type="source"
+		position={{ x: sourcePoint.x, y: sourcePoint.y }}
+	/>
+	<EdgeReconnectAnchor
+		bind:reconnecting
+		type="target"
+		position={{ x: targetPoint.x, y: targetPoint.y }}
+	/>
+{/if}
 
 <path
 	d={path}
