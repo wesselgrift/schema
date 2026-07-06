@@ -1055,6 +1055,7 @@
 
 	:global(.canvas-flow .svelte-flow__connection-path) {
 		stroke-width: 2px;
+		stroke: var(--color-blue-500);
 	}
 
 	.top-controls {

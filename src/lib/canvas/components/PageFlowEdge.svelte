@@ -371,7 +371,7 @@
 	interactionWidth={0}
 	{style}
 	class={[
-		'page-flow-edge stroke-2! transition-colors stroke-muted',
+		'page-flow-edge stroke-2! transition-colors stroke-gray-300',
 		{
 			'stroke-blue-500!': selected,
 			'opacity-0': reconnecting
@@ -431,7 +431,7 @@
 				rows={labelRows}
 				readonly={!isEditing}
 				class={[
-					'page-flow-label-input nodrag nopan resize-none overflow-hidden rounded-lg border-2 border-transparent bg-muted px-2 py-1 text-xs text-black shadow-none placeholder:text-muted-foreground focus-visible:outline-none',
+					'page-flow-label-input nodrag nopan resize-none overflow-hidden rounded-lg border-2 border-transparent bg-gray-200 px-2 py-1 text-xs text-black shadow-none placeholder:text-muted-foreground focus-visible:outline-none',
 					{
 						'bg-white border-blue-500!': isLabelSelected
 					}
