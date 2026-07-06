@@ -2,7 +2,7 @@
 	--canvas-grid: color-mix(in srgb, var(--primary) 50%, transparent); /* Canvas grid dots. */
 	--selection: color-mix(in srgb, var(--primary) 18%, transparent); /* Marquee fill. */
 	--selection-border: color-mix(in srgb, var(--primary) 70%, transparent); /* Marquee border. */
-	--shadow-card: 0 10px 24px rgb(15 23 42 / 14%); /* Page card shadow. */
+	--shadow-card: 0 10px 24px rgb(15 23 42 / 4%); /* Page card shadow. */
 	--shadow-card-active: 0 10px 24px color-mix(in srgb, var(--primary) 28%, transparent); /* Selected card shadow. */
 	--shadow-popover: 0 16px 40px rgb(15 23 42 / 14%); /* Floating UI shadow. */
 }
