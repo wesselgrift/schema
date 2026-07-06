@@ -29,7 +29,7 @@
 		style
 	}: EdgeProps<PageFlowEdge> = $props();
 
-	const { updateEdge } = useSvelteFlow<Node, PageFlowEdge>();
+	const { updateEdge, getNodes, updateNode } = useSvelteFlow<Node, PageFlowEdge>();
 	const HANDLE_OFFSET = 12;
 	const CARD_EDGE_OVERLAP = 16;
 	const EDGE_ENDPOINT_INSET = HANDLE_OFFSET + CARD_EDGE_OVERLAP;
@@ -113,7 +113,16 @@
 		return { x: point.x, y: point.y };
 	}
 
+	function clearNodeSelection() {
+		for (const node of getNodes()) {
+			if (node.selected) {
+				updateNode(node.id, { selected: false });
+			}
+		}
+	}
+
 	function selectLabel() {
+		clearNodeSelection();
 		updateEdge(id, (edge) => ({
 			...edge,
 			selected: false,
@@ -311,6 +320,8 @@
 		labelWasSelectedOnPointerdown = Boolean(data?.labelSelected || selected);
 		if (!labelWasSelectedOnPointerdown) {
 			selectLabel();
+		} else {
+			clearNodeSelection();
 		}
 
 		dragPointerId = event.pointerId;
