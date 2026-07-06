@@ -270,24 +270,41 @@
 		};
 	}
 
-	function handlePaneClick({ event }: { event: MouseEvent }) {
-		if (activeTool !== 'add-page') {
-			clearEdgeLabelSelection();
-			return;
+	function addPageAtFlowPoint(flowPoint: XYPosition) {
+		const page = createPage(nextPageId++, flowPoint);
+		let pageNode = pageToNode(page, { focusTitle: true });
+
+		const section = getTopmostSectionContainingPoint(flowPoint, nodes);
+		let nextNodes: CanvasFlowNode[] = [...nodes, pageNode];
+
+		if (section) {
+			pageNode = reparentPageNode(pageNode, section, nextNodes);
+			nextNodes = nextNodes.map((node) => (node.id === pageNode.id ? pageNode : node));
 		}
 
-		const flowPoint = clientPointToFlowPoint({ x: event.clientX, y: event.clientY });
-		if (!flowPoint) return;
-
-		const page = createPage(nextPageId++, flowPoint);
-
-		nodes = orderNodesForParenting([...nodes, pageToNode(page, { focusTitle: true })]);
+		nodes = orderNodesForParenting(nextNodes);
 		activeTool = 'select';
 	}
 
+	function handlePaneClick(_: { event: MouseEvent }) {
+		clearEdgeLabelSelection();
+	}
+
 	function handleCanvasPointerdown(event: PointerEvent) {
+		if (activeTool === 'add-page' && event.button === 0) {
+			if (isCanvasToolBlockedTarget(event.target, ADD_PAGE_BLOCKED_SELECTORS)) return;
+
+			const flowPoint = clientPointToFlowPoint({ x: event.clientX, y: event.clientY });
+			if (!flowPoint) return;
+
+			addPageAtFlowPoint(flowPoint);
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
+
 		if (activeTool !== 'add-section' || event.button !== 0) return;
-		if (isSectionToolInteractiveTarget(event.target)) return;
+		if (isCanvasToolBlockedTarget(event.target)) return;
 
 		const startFlow = clientPointToFlowPoint({ x: event.clientX, y: event.clientY });
 		if (!startFlow) return;
@@ -398,30 +415,56 @@
 		};
 	}
 
-	function isSectionToolInteractiveTarget(target: EventTarget | null): boolean {
+	// Interactive elements that should never trigger add-page placement. Note this
+	// intentionally omits the generic `.nopan`/`.nodrag` wrapper classes: SvelteFlow
+	// adds `.nopan` to every draggable node wrapper (sections included), and blocking
+	// on it would stop pages from being placed inside sections. Page cards are still
+	// blocked explicitly via `.page-card`.
+	const ADD_PAGE_BLOCKED_SELECTORS = [
+		'button',
+		'a',
+		'input',
+		'textarea',
+		'select',
+		'[contenteditable="true"]',
+		'[role="button"]',
+		'[role="textbox"]',
+		'.svelte-flow__handle',
+		'.svelte-flow__edge',
+		'.svelte-flow__resize-control',
+		'.svelte-flow__resize-control-line',
+		'.svelte-flow__resize-control-handle',
+		'.page-card',
+		'.page-header-row',
+		'.page-flow-label',
+		'.section-flow-title-input'
+	];
+
+	const CANVAS_TOOL_BLOCKED_SELECTORS = [
+		'button',
+		'a',
+		'input',
+		'textarea',
+		'select',
+		'[contenteditable="true"]',
+		'[role="button"]',
+		'[role="textbox"]',
+		'.nodrag',
+		'.nopan',
+		'.svelte-flow__handle',
+		'.svelte-flow__edge',
+		'.svelte-flow__resize-control',
+		'.svelte-flow__resize-control-line',
+		'.svelte-flow__resize-control-handle'
+	];
+
+	function isCanvasToolBlockedTarget(
+		target: EventTarget | null,
+		selectors: string[] = CANVAS_TOOL_BLOCKED_SELECTORS
+	) {
 		if (!(target instanceof Element)) return true;
 
-		return Boolean(
-			target.closest(
-				[
-					'button',
-					'a',
-					'input',
-					'textarea',
-					'select',
-					'[contenteditable="true"]',
-					'[role="button"]',
-					'[role="textbox"]',
-					'.nodrag',
-					'.nopan',
-					'.svelte-flow__handle',
-					'.svelte-flow__edge',
-					'.svelte-flow__resize-control',
-					'.svelte-flow__resize-control-line',
-					'.svelte-flow__resize-control-handle'
-				].join(',')
-			)
-		);
+		return Boolean(target.closest(selectors.join(',')));
 	}
 
 	function handleBeforeConnect(connection: Connection): PageFlowEdgeType | false {
@@ -994,6 +1037,10 @@
 	}
 
 	:global(.canvas-flow.canvas-flow--add-node .svelte-flow__pane) {
+		cursor: crosshair;
+	}
+
+	:global(.canvas-flow.canvas-flow--add-node .svelte-flow__node:has(.section-flow-node)) {
 		cursor: crosshair;
 	}
 
