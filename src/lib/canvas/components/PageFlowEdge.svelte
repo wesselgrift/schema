@@ -180,8 +180,10 @@
 		}
 	}
 
-	function handleLabelBlur() {
+	function handleLabelBlur(event: FocusEvent & { currentTarget: HTMLTextAreaElement }) {
 		isEditing = false;
+		event.currentTarget.setSelectionRange(0, 0);
+		window.getSelection()?.removeAllRanges();
 	}
 
 	function handleInteractionKeydown(event: KeyboardEvent) {
