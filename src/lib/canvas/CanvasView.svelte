@@ -1187,20 +1187,6 @@
 				{/if}
 			</div>
 		{/if}
-		<Button
-			type="button"
-			variant="outline"
-			class="floating-control-button bg-background hover:bg-secondary"
-			onclick={shareCanvas}
-		>
-			<HugeiconsIcon
-				icon={Share08Icon}
-				data-icon="inline-start"
-				strokeWidth={2}
-				aria-hidden="true"
-			/>
-			Share
-		</Button>
 		{#if saveStatus !== 'idle'}
 			<span
 				class="save-status text-muted-foreground"
@@ -1241,6 +1227,20 @@
 				{/if}
 			</span>
 		{/if}
+		<Button
+			type="button"
+			variant="outline"
+			class="floating-control-button bg-background hover:bg-secondary"
+			onclick={shareCanvas}
+		>
+			<HugeiconsIcon
+				icon={Share08Icon}
+				data-icon="inline-start"
+				strokeWidth={2}
+				aria-hidden="true"
+			/>
+			Share
+		</Button>
 		<Button
 			type="button"
 			variant="outline"
