@@ -24,6 +24,7 @@
 		PanOnScrollMode,
 		SelectionMode,
 		SvelteFlow,
+		useSvelteFlow,
 		type Connection,
 		type EdgeTypes,
 		type NodeTargetEventWithPointer,
@@ -107,6 +108,7 @@
 
 	const initialStore = loadStore() ?? createEmptyStore();
 	const activeCanvas = getActiveCanvas(initialStore);
+	const { setViewport } = useSvelteFlow();
 
 	let store = $state<StoredState>(initialStore);
 
@@ -747,7 +749,7 @@
 	}
 
 	function resetView() {
-		viewport = { ...INITIAL_VIEWPORT };
+		setViewport({ ...INITIAL_VIEWPORT });
 	}
 
 	function handleProjectTitleKeydown(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {

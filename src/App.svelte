@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { SvelteFlowProvider } from '@xyflow/svelte';
 	import CanvasView from './lib/canvas/CanvasView.svelte';
 </script>
 
 <main class="app-shell">
-	<CanvasView />
+	<SvelteFlowProvider>
+		<CanvasView />
+	</SvelteFlowProvider>
 </main>
 
 <style>
