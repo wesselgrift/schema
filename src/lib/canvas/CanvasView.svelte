@@ -13,10 +13,13 @@
 		FileExportIcon,
 		GroupIcon,
 		Loading03Icon,
+		Redo02Icon,
 		Refresh01Icon,
 		Search01Icon,
-		Tick02Icon
+		Tick02Icon,
+		Undo02Icon
 	} from '@hugeicons/core-free-icons';
+	import { setContext, tick } from 'svelte';
 	import {
 		Background,
 		BackgroundVariant,
@@ -60,6 +63,12 @@
 		type PageFlowNode as PageFlowNodeType,
 		type SectionFlowNode
 	} from './flow';
+	import {
+		classifyChange,
+		createContentSnapshot,
+		decodeContentSnapshot,
+		type ContentSnapshot
+	} from './history';
 	import PageFlowEdge from './components/PageFlowEdge.svelte';
 	import PageFlowNode from './components/PageFlowNode.svelte';
 	import SectionFlowNodeComponent from './components/SectionFlowNode.svelte';
@@ -72,8 +81,6 @@
 		listCanvases,
 		loadStore,
 		persistActiveCanvas,
-		serializeEdge,
-		serializeNode,
 		switchActiveCanvas,
 		type StoredCanvas,
 		type StoredState
@@ -137,13 +144,23 @@
 
 	const SAVE_DEBOUNCE_MS = 500;
 	const SAVED_VISIBLE_MS = 1200;
+	const HISTORY_LIMIT = 100;
+	const TEXT_COALESCE_MS = 500;
+
+	let undoStack = $state<ContentSnapshot[]>([]);
+	let redoStack = $state<ContentSnapshot[]>([]);
+	let textBaseline = $state<ContentSnapshot | null>(null);
+	let committed: ContentSnapshot = lastContentSnapshot;
+	let textTimer: ReturnType<typeof setTimeout> | undefined;
+	let isRestoring = false;
+	let gestureActive = false;
+	let gestureBaseline: ContentSnapshot | null = null;
+
+	let canUndo = $derived(undoStack.length > 0 || textBaseline !== null);
+	let canRedo = $derived(redoStack.length > 0);
 
 	function serializeContent(): string {
-		return JSON.stringify({
-			name: projectName,
-			nodes: nodes.map(serializeNode),
-			edges: edges.map(serializeEdge)
-		});
+		return createContentSnapshot({ name: projectName, nodes, edges });
 	}
 
 	function serializeViewport(): string {
@@ -176,11 +193,143 @@
 
 	$effect(() => {
 		const snapshot = serializeContent();
+		if (isRestoring) {
+			committed = snapshot;
+			lastContentSnapshot = snapshot;
+			scheduleSave(true);
+			return;
+		}
+
 		if (snapshot === lastContentSnapshot) return;
 
+		const previous = lastContentSnapshot;
 		lastContentSnapshot = snapshot;
+		recordChange(previous, snapshot);
 		scheduleSave(true);
 	});
+
+	function pushUndo(snapshot: ContentSnapshot) {
+		const next = [...undoStack, snapshot];
+		undoStack = next.length > HISTORY_LIMIT ? next.slice(next.length - HISTORY_LIMIT) : next;
+	}
+
+	function flushPendingText() {
+		if (textBaseline === null) return;
+
+		clearTimeout(textTimer);
+		textTimer = undefined;
+		pushUndo(textBaseline);
+		committed = serializeContent();
+		textBaseline = null;
+	}
+
+	function recordChange(previous: ContentSnapshot, snapshot: ContentSnapshot) {
+		const kind = classifyChange(committed, snapshot);
+		if (gestureActive) return;
+		if (kind === 'none') return;
+
+		if (kind === 'structural') {
+			if (textBaseline !== null) {
+				clearTimeout(textTimer);
+				textTimer = undefined;
+				pushUndo(textBaseline);
+				pushUndo(previous);
+				textBaseline = null;
+			} else {
+				pushUndo(committed);
+			}
+			committed = snapshot;
+			redoStack = [];
+			return;
+		}
+
+		// Text-only change: invalidate redo immediately, capture the baseline once,
+		// and (re)start the coalescing timer so a typing burst becomes one entry.
+		redoStack = [];
+		if (textBaseline === null) {
+			textBaseline = committed;
+		}
+		clearTimeout(textTimer);
+		textTimer = setTimeout(flushPendingText, TEXT_COALESCE_MS);
+	}
+
+	async function restoreSnapshot(snapshot: ContentSnapshot) {
+		isRestoring = true;
+
+		const decoded = decodeContentSnapshot(snapshot);
+		nodes = orderNodesForParenting(decoded.nodes);
+		edges = decoded.edges;
+		projectName = decoded.name;
+		nextPageId = getNextNumericPageId(decoded.nodes);
+		nextEdgeId = getNextNumericEdgeId(decoded.edges);
+
+		await tick();
+
+		const applied = serializeContent();
+		committed = applied;
+		lastContentSnapshot = applied;
+		isRestoring = false;
+	}
+
+	function resetHistory() {
+		clearTimeout(textTimer);
+		textTimer = undefined;
+		textBaseline = null;
+		undoStack = [];
+		redoStack = [];
+		committed = serializeContent();
+	}
+
+	async function undo() {
+		flushPendingText();
+		if (undoStack.length === 0) return;
+
+		const current = serializeContent();
+		const target = undoStack[undoStack.length - 1];
+		undoStack = undoStack.slice(0, -1);
+		redoStack = [...redoStack, current];
+		await restoreSnapshot(target);
+	}
+
+	async function redo() {
+		if (redoStack.length === 0) return;
+
+		const current = serializeContent();
+		const target = redoStack[redoStack.length - 1];
+		redoStack = redoStack.slice(0, -1);
+		undoStack = [...undoStack, current];
+		await restoreSnapshot(target);
+	}
+
+	// A continuous drag (node or label) mutates content every frame. Instead of
+	// recording one entry per frame, we suppress recording for the duration of the
+	// gesture and finalize a single entry from the pre-gesture baseline on end.
+	function beginGesture() {
+		if (gestureActive) return;
+
+		flushPendingText();
+		gestureBaseline = committed;
+		gestureActive = true;
+	}
+
+	function endGesture() {
+		if (!gestureActive) return;
+
+		gestureActive = false;
+		const baseline = gestureBaseline;
+		gestureBaseline = null;
+		if (baseline === null) return;
+
+		const current = serializeContent();
+		if (current === baseline) return;
+
+		pushUndo(baseline);
+		committed = current;
+		lastContentSnapshot = current;
+		redoStack = [];
+	}
+
+	setContext('canvas-history', { beginGesture, endGesture });
 
 	$effect(() => {
 		const snapshot = serializeViewport();
@@ -194,6 +343,7 @@
 		return () => {
 			clearTimeout(saveTimer);
 			clearTimeout(hideTimer);
+			clearTimeout(textTimer);
 		};
 	});
 
@@ -222,6 +372,7 @@
 
 		lastContentSnapshot = serializeContent();
 		lastViewportSnapshot = serializeViewport();
+		resetHistory();
 	}
 
 	function switchCanvas(id: string) {
@@ -638,6 +789,10 @@
 		setDropTargetSection(section?.id ?? null);
 	}
 
+	function handleNodeDragStart() {
+		beginGesture();
+	}
+
 	function handleNodeDragStop({
 		nodes: draggedNodes
 	}: Parameters<NodeTargetEventWithPointer<MouseEvent | TouchEvent, CanvasFlowNode>>[0]) {
@@ -647,6 +802,7 @@
 
 		if (draggedPageIds.size === 0) {
 			setDropTargetSection(null);
+			endGesture();
 			return;
 		}
 
@@ -665,6 +821,7 @@
 		}
 
 		nodes = orderNodesForParenting(nextNodes);
+		endGesture();
 	}
 
 	function mergeEventNodes(
@@ -719,7 +876,23 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent) {
-		if (isTextEntryTarget(event.target) || event.repeat) return;
+		if (isTextEntryTarget(event.target)) return;
+
+		const withMod = event.metaKey || event.ctrlKey;
+		const key = event.key.toLowerCase();
+		if (withMod && key === 'z') {
+			event.preventDefault();
+			if (event.shiftKey) redo();
+			else undo();
+			return;
+		}
+		if (withMod && key === 'y') {
+			event.preventDefault();
+			redo();
+			return;
+		}
+
+		if (event.repeat) return;
 
 		if (event.key === 'Backspace' || event.key === 'Delete') {
 			if (clearSelectedEdgeLabels()) {
@@ -801,6 +974,7 @@
 			onselectionchange={handleSelectionChange}
 			onselectionstart={handleSelectionStart}
 			onselectionend={handleSelectionEnd}
+			onnodedragstart={handleNodeDragStart}
 			onnodedrag={handleNodeDrag}
 			onnodedragstop={handleNodeDragStop}
 		>
@@ -895,6 +1069,30 @@
 					</Button>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
+		</div>
+		<div class="history-controls flex items-center gap-1" role="group" aria-label="History">
+			<Button
+				type="button"
+				variant="outline"
+				size="icon"
+				class="floating-control-button bg-background hover:bg-secondary"
+				disabled={!canUndo}
+				aria-label="Undo"
+				onclick={undo}
+			>
+				<HugeiconsIcon icon={Undo02Icon} strokeWidth={2} aria-hidden="true" />
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				size="icon"
+				class="floating-control-button bg-background hover:bg-secondary"
+				disabled={!canRedo}
+				aria-label="Redo"
+				onclick={redo}
+			>
+				<HugeiconsIcon icon={Redo02Icon} strokeWidth={2} aria-hidden="true" />
+			</Button>
 		</div>
 	</div>
 

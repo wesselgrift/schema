@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { getContext, tick } from 'svelte';
 	import {
 		BaseEdge,
 		EdgeLabel,
@@ -30,6 +30,9 @@
 	}: EdgeProps<PageFlowEdge> = $props();
 
 	const { updateEdge, getNodes, updateNode } = useSvelteFlow<Node, PageFlowEdge>();
+	const history = getContext<{ beginGesture: () => void; endGesture: () => void } | undefined>(
+		'canvas-history'
+	);
 	const HANDLE_OFFSET = 12;
 	const CARD_EDGE_OVERLAP = 16;
 	const EDGE_ENDPOINT_INSET = HANDLE_OFFSET + CARD_EDGE_OVERLAP;
@@ -342,6 +345,7 @@
 			if (distanceX ** 2 + distanceY ** 2 < LABEL_DRAG_THRESHOLD ** 2) return;
 
 			hasDraggedLabel = true;
+			history?.beginGesture();
 		}
 
 		updateLabelPositionFromPointer(event);
@@ -353,8 +357,13 @@
 		if (dragPointerId !== event.pointerId) return;
 
 		const shouldEdit = labelWasSelectedOnPointerdown && !hasDraggedLabel;
+		const didDrag = hasDraggedLabel;
 		releaseLabelPointerCapture(event.currentTarget, event.pointerId);
 		resetLabelDrag();
+
+		if (didDrag) {
+			history?.endGesture();
+		}
 
 		if (shouldEdit) {
 			void enterLabelEditMode(event);
@@ -365,8 +374,13 @@
 		event.stopPropagation();
 
 		if (dragPointerId === event.pointerId) {
+			const didDrag = hasDraggedLabel;
 			releaseLabelPointerCapture(event.currentTarget, event.pointerId);
 			resetLabelDrag();
+
+			if (didDrag) {
+				history?.endGesture();
+			}
 		}
 	}
 
