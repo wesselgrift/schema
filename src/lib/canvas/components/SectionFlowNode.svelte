@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { NodeResizer, NodeToolbar, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
+	import { UngroupIcon } from '@hugeicons/core-free-icons';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { getContext } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
+	import { Button } from '$lib/components/ui/button';
 	import { MIN_SECTION_SIZE, type SectionFlowNode } from '../flow';
 
 	type FocusableSectionFlowNode = SectionFlowNode & {
@@ -15,6 +18,9 @@
 	const { updateNode, updateNodeData } = useSvelteFlow<FocusableSectionFlowNode>();
 	const history = getContext<{ beginGesture: () => void; endGesture: () => void } | undefined>(
 		'canvas-history'
+	);
+	const sectionActions = getContext<{ ungroupSection: (id: string) => void } | undefined>(
+		'canvas-section-actions'
 	);
 
 	let isActive = $derived(selected || data.isDropTarget);
@@ -93,6 +99,20 @@
 		onkeydown={handleTitleKeydown}
 		oninput={handleTitleInput}
 	/>
+</NodeToolbar>
+
+<NodeToolbar nodeId={id} position={Position.Top} align="end" offset={10} isVisible={selected}>
+	<Button
+		type="button"
+		variant="outline"
+		size="icon"
+		class="floating-control-button nodrag nopan bg-background hover:bg-secondary"
+		aria-label="Ungroup section"
+		onpointerdown={stopCanvasEvent}
+		onclick={() => sectionActions?.ungroupSection(id)}
+	>
+		<HugeiconsIcon icon={UngroupIcon} strokeWidth={2} aria-hidden="true" />
+	</Button>
 </NodeToolbar>
 
 <NodeResizer

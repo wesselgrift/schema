@@ -344,6 +344,7 @@
 	}
 
 	setContext('canvas-history', { beginGesture, endGesture });
+	setContext('canvas-section-actions', { ungroupSection });
 
 	$effect(() => {
 		const snapshot = serializeViewport();
@@ -678,46 +679,24 @@
 			edgesToDelete.filter((edge) => edge.data?.labelSelected).map((edge) => edge.id)
 		);
 
-		if (labeledEdgeIds.size === 0) {
-			return preserveSectionChildrenOnDelete(nodesToDelete, edgesToDelete);
+		if (labeledEdgeIds.size > 0) {
+			edges = edges.map((edge) =>
+				labeledEdgeIds.has(edge.id) ? { ...edge, data: {}, selected: false } : edge
+			);
+
+			return false;
 		}
 
-		edges = edges.map((edge) =>
-			labeledEdgeIds.has(edge.id) ? { ...edge, data: {}, selected: false } : edge
-		);
+		if (nodesToDelete.some((node) => node.type === SECTION_NODE_TYPE)) {
+			beginGesture();
+		}
 
-		return false;
+		return true;
 	};
 
-	function preserveSectionChildrenOnDelete(
-		nodesToDelete: CanvasFlowNode[],
-		edgesToDelete: PageFlowEdgeType[]
-	): { nodes: CanvasFlowNode[]; edges: PageFlowEdgeType[] } | true {
-		const deletedSectionIds = new Set(
-			nodesToDelete.filter((node) => node.type === SECTION_NODE_TYPE).map((node) => node.id)
-		);
-		if (deletedSectionIds.size === 0) return true;
-
-		beginGesture();
-
-		let nextNodes = nodes;
-		for (const sectionId of deletedSectionIds) {
-			nextNodes = unparentSectionChildren(nextNodes, sectionId);
-		}
-		nodes = orderNodesForParenting(nextNodes);
-
-		const preservedChildIds = new Set(
-			nodesToDelete
-				.filter((node) => node.type === PAGE_NODE_TYPE && deletedSectionIds.has(node.parentId ?? ''))
-				.map((node) => node.id)
-		);
-
-		return {
-			nodes: nodesToDelete.filter((node) => !preservedChildIds.has(node.id)),
-			edges: edgesToDelete.filter(
-				(edge) => !preservedChildIds.has(edge.source) && !preservedChildIds.has(edge.target)
-			)
-		};
+	function ungroupSection(sectionId: string) {
+		const unparented = unparentSectionChildren(nodes, sectionId);
+		nodes = orderNodesForParenting(unparented.filter((node) => node.id !== sectionId));
 	}
 
 	function clearSelectedEdgeLabels(): boolean {
