@@ -23,13 +23,13 @@ import { tags } from '@lezer/highlight';
  * Colours are bound to the app's Tailwind CSS variables so light/dark mode match.
  */
 const markdownHighlightStyle = HighlightStyle.define([
-	{ tag: tags.heading1, fontSize: '1.6em', fontWeight: '700', lineHeight: '1.3' },
-	{ tag: tags.heading2, fontSize: '1.4em', fontWeight: '700', lineHeight: '1.3' },
+	{ tag: tags.heading1, fontSize: '1.6em', fontWeight: '600', lineHeight: '1.3' },
+	{ tag: tags.heading2, fontSize: '1.4em', fontWeight: '600', lineHeight: '1.3' },
 	{ tag: tags.heading3, fontSize: '1.2em', fontWeight: '600', lineHeight: '1.35' },
 	{ tag: tags.heading4, fontSize: '1.05em', fontWeight: '600' },
 	{ tag: tags.heading5, fontSize: '1em', fontWeight: '600' },
 	{ tag: tags.heading6, fontSize: '0.9em', fontWeight: '600', color: 'var(--muted-foreground)' },
-	{ tag: tags.strong, fontWeight: '700' },
+	{ tag: tags.strong, fontWeight: '600' },
 	{ tag: tags.emphasis, fontStyle: 'italic' },
 	{ tag: tags.strikethrough, textDecoration: 'line-through' },
 	{ tag: tags.link, color: 'var(--primary)', textDecoration: 'underline' },

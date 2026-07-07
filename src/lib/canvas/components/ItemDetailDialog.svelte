@@ -71,7 +71,7 @@
 			Edit the item title and its markdown description.
 		</Dialog.Description>
 
-		<div class="flex items-center gap-0.5">
+		<div class="flex items-center gap-0">
 			<ItemTypePicker
 				{itemId}
 				itemTitle={title}
@@ -120,7 +120,7 @@
 				class="min-h-0 flex-1"
 			/>
 			<svg
-				class="pointer-events-none absolute right-3 bottom-3 h-4 text-muted-foreground/50"
+				class="pointer-events-none absolute right-3 bottom-3 h-3 text-muted-foreground/50"
 				viewBox="0 0 208 128"
 				fill="currentColor"
 				aria-hidden="true"
