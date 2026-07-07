@@ -71,7 +71,7 @@
 			Edit the item title and its markdown description.
 		</Dialog.Description>
 
-		<div class="flex items-center gap-1.5">
+		<div class="flex items-center gap-0.5">
 			<ItemTypePicker
 				{itemId}
 				itemTitle={title}
