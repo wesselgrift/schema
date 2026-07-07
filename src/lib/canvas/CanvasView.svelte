@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { toast } from 'svelte-sonner';
 	import {
 		Add01Icon,
 		AlertCircleIcon,
@@ -58,6 +59,7 @@
 		PAGE_NODE_TYPE,
 		pageToNode,
 		reparentPageNode,
+		sectionContainsSection,
 		unparentSectionChildren,
 		type CanvasFlowNode,
 		type PageFlowEdge as PageFlowEdgeType,
@@ -561,6 +563,16 @@
 			height,
 			focusTitle: true
 		});
+
+		const wouldNest = nodes.some(
+			(node): node is SectionFlowNode =>
+				node.type === SECTION_NODE_TYPE && sectionContainsSection(section, node)
+		);
+		if (wouldNest) {
+			toast('Nesting sections is currently not supported', { id: 'section-nesting-unsupported' });
+			activeTool = 'select';
+			return;
+		}
 
 		let nextNodes: CanvasFlowNode[] = [...nodes, section];
 

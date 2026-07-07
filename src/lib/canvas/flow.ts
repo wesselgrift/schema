@@ -195,6 +195,18 @@ export function isPointInsideSection(point: XYPosition, section: SectionFlowNode
 	);
 }
 
+export function sectionContainsSection(outer: SectionFlowNode, inner: SectionFlowNode): boolean {
+	const o = getSectionTopLeft(outer);
+	const i = getSectionTopLeft(inner);
+
+	return (
+		i.x >= o.x &&
+		i.y >= o.y &&
+		i.x + inner.data.width <= o.x + outer.data.width &&
+		i.y + inner.data.height <= o.y + outer.data.height
+	);
+}
+
 export function reparentPageNode(
 	pageNode: PageFlowNode,
 	section: SectionFlowNode | null,

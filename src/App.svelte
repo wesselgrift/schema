@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { SvelteFlowProvider } from '@xyflow/svelte';
+	import { Toaster } from '$lib/components/ui/sonner';
 	import CanvasView from './lib/canvas/CanvasView.svelte';
 </script>
 
@@ -7,6 +8,7 @@
 	<SvelteFlowProvider>
 		<CanvasView />
 	</SvelteFlowProvider>
+	<Toaster position="top-center" />
 </main>
 
 <style>
