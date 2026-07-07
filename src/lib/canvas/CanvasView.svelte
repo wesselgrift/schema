@@ -67,9 +67,9 @@
 		type SectionFlowNode
 	} from './flow';
 	import {
-		classifyChange,
 		createContentSnapshot,
 		decodeContentSnapshot,
+		structuralSignature,
 		type ContentSnapshot
 	} from './history';
 	import PageFlowEdge from './components/PageFlowEdge.svelte';
@@ -167,6 +167,7 @@
 	let redoStack = $state<ContentSnapshot[]>([]);
 	let textBaseline = $state<ContentSnapshot | null>(null);
 	let committed: ContentSnapshot = lastContentSnapshot;
+	let committedSignature: string = structuralSignature(lastContentSnapshot);
 	let textTimer: ReturnType<typeof setTimeout> | undefined;
 	let isRestoring = false;
 	let gestureActive = false;
@@ -181,6 +182,11 @@
 
 	function serializeViewport(): string {
 		return JSON.stringify(viewport);
+	}
+
+	function setCommitted(snapshot: ContentSnapshot) {
+		committed = snapshot;
+		committedSignature = structuralSignature(snapshot);
 	}
 
 	function scheduleSave(visible: boolean) {
@@ -208,14 +214,27 @@
 	}
 
 	$effect(() => {
-		const snapshot = serializeContent();
+		// Read reactive deps first so Svelte keeps tracking them across every branch.
+		const name = projectName;
+		const currentNodes = nodes;
+		const currentEdges = edges;
+
+		// Undo/redo restore: restoreSnapshot() owns committed/lastContentSnapshot
+		// (set after tick), so here we only need to persist the restored state.
 		if (isRestoring) {
-			committed = snapshot;
-			lastContentSnapshot = snapshot;
 			scheduleSave(true);
 			return;
 		}
 
+		// During a drag/resize/label-drag gesture, do no serialize/diff work.
+		// endGesture() finalizes the single undo entry; scheduleSave stays so the
+		// final position/size is still autosaved.
+		if (gestureActive) {
+			scheduleSave(true);
+			return;
+		}
+
+		const snapshot = createContentSnapshot({ name, nodes: currentNodes, edges: currentEdges });
 		if (snapshot === lastContentSnapshot) return;
 
 		const previous = lastContentSnapshot;
@@ -235,13 +254,19 @@
 		clearTimeout(textTimer);
 		textTimer = undefined;
 		pushUndo(textBaseline);
-		committed = serializeContent();
+		setCommitted(serializeContent());
 		textBaseline = null;
 	}
 
 	function recordChange(previous: ContentSnapshot, snapshot: ContentSnapshot) {
-		const kind = classifyChange(committed, snapshot);
 		if (gestureActive) return;
+
+		const kind =
+			committed === snapshot
+				? 'none'
+				: committedSignature === structuralSignature(snapshot)
+					? 'text'
+					: 'structural';
 		if (kind === 'none') return;
 
 		if (kind === 'structural') {
@@ -254,7 +279,7 @@
 			} else {
 				pushUndo(committed);
 			}
-			committed = snapshot;
+			setCommitted(snapshot);
 			redoStack = [];
 			return;
 		}
@@ -282,7 +307,7 @@
 		await tick();
 
 		const applied = serializeContent();
-		committed = applied;
+		setCommitted(applied);
 		lastContentSnapshot = applied;
 		isRestoring = false;
 	}
@@ -293,7 +318,7 @@
 		textBaseline = null;
 		undoStack = [];
 		redoStack = [];
-		committed = serializeContent();
+		setCommitted(serializeContent());
 	}
 
 	async function undo() {
@@ -340,7 +365,7 @@
 		if (current === baseline) return;
 
 		pushUndo(baseline);
-		committed = current;
+		setCommitted(current);
 		lastContentSnapshot = current;
 		redoStack = [];
 	}
