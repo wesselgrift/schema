@@ -698,6 +698,8 @@
 		);
 		if (deletedSectionIds.size === 0) return true;
 
+		beginGesture();
+
 		let nextNodes = nodes;
 		for (const sectionId of deletedSectionIds) {
 			nextNodes = unparentSectionChildren(nextNodes, sectionId);
@@ -1033,6 +1035,10 @@
 			onbeforeconnect={handleBeforeConnect}
 			onbeforereconnect={handleBeforeReconnect}
 			onbeforedelete={handleBeforeDelete}
+			ondelete={async () => {
+				await tick();
+				endGesture();
+			}}
 			onselectionchange={handleSelectionChange}
 			onselectionstart={handleSelectionStart}
 			onselectionend={handleSelectionEnd}
