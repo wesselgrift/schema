@@ -1,4 +1,4 @@
-import type { Page } from './pages';
+import type { Item } from './items';
 import type { Point } from './viewport';
 
 export type SelectionRect = Point & {
@@ -18,11 +18,11 @@ export function normalizeRect(start: Point, end: Point): SelectionRect {
 	};
 }
 
-export function findPagesInRect(pages: Page[], rect: SelectionRect): number[] {
+export function findItemsInRect(items: Item[], rect: SelectionRect): number[] {
 	const maxX = rect.x + rect.width;
 	const maxY = rect.y + rect.height;
 
-	return pages
-		.filter((page) => page.x >= rect.x && page.x <= maxX && page.y >= rect.y && page.y <= maxY)
-		.map((page) => page.id);
+	return items
+		.filter((item) => item.x >= rect.x && item.x <= maxX && item.y >= rect.y && item.y <= maxY)
+		.map((item) => item.id);
 }

@@ -15,11 +15,11 @@ import {
 import {
 	createPageFlowEdge,
 	createSectionNode,
-	pageToNode,
+	itemToNode,
 	type CanvasFlowNode,
 	type PageFlowEdge
 } from './flow';
-import { createPage } from './pages';
+import { createItem } from './items';
 
 function buildPatch(overrides: Partial<CanvasPatch> = {}): CanvasPatch {
 	return {
@@ -52,9 +52,9 @@ describe('canvas persistence', () => {
 	});
 
 	test('persists and loads a canvas roundtrip', () => {
-		const nodes: CanvasFlowNode[] = [pageToNode(createPage(1, { x: 10, y: 20 }))];
+		const nodes: CanvasFlowNode[] = [itemToNode(createItem(1, { x: 10, y: 20 }))];
 		const edges: PageFlowEdge[] = [
-			createPageFlowEdge('edge-1', { source: 'page-1', target: 'page-1' }, 'loops')
+			createPageFlowEdge('edge-1', { source: 'item-1', target: 'item-1' }, 'loops')
 		];
 
 		persistActiveCanvas(
@@ -85,8 +85,8 @@ describe('canvas persistence', () => {
 	});
 
 	test('strips transient runtime fields before persisting', () => {
-		const pageNode = {
-			...pageToNode(createPage(1, { x: 0, y: 0 }), { focusTitle: true }),
+		const itemNode = {
+			...itemToNode(createItem(1, { x: 0, y: 0 }), { focusTitle: true }),
 			selected: true,
 			dragging: true,
 			measured: { width: 200, height: 120 }
@@ -97,25 +97,25 @@ describe('canvas persistence', () => {
 			selected: true
 		} as CanvasFlowNode;
 		const edge = {
-			...createPageFlowEdge('edge-1', { source: 'page-1', target: 'page-1' }, 'ok'),
+			...createPageFlowEdge('edge-1', { source: 'item-1', target: 'item-1' }, 'ok'),
 			selected: true,
 			data: { label: 'ok', labelSelected: true }
 		} as PageFlowEdge;
 
 		persistActiveCanvas(
 			createEmptyStore(),
-			buildPatch({ nodes: [sectionNode, pageNode], edges: [edge] })
+			buildPatch({ nodes: [sectionNode, itemNode], edges: [edge] })
 		);
 
 		const active = getActiveCanvas(loadStore()!);
-		const storedPage = active.nodes.find((node) => node.id === 'page-1')!;
+		const storedItem = active.nodes.find((node) => node.id === 'item-1')!;
 		const storedSection = active.nodes.find((node) => node.id === 'section-1')!;
 		const storedEdge = active.edges[0];
 
-		expect('selected' in storedPage).toBe(false);
-		expect('dragging' in storedPage).toBe(false);
-		expect('measured' in storedPage).toBe(false);
-		expect('focusTitle' in storedPage.data).toBe(false);
+		expect('selected' in storedItem).toBe(false);
+		expect('dragging' in storedItem).toBe(false);
+		expect('measured' in storedItem).toBe(false);
+		expect('focusTitle' in storedItem.data).toBe(false);
 		expect('selected' in storedSection).toBe(false);
 		expect('isDropTarget' in storedSection.data).toBe(false);
 		expect('focusTitle' in storedSection.data).toBe(false);

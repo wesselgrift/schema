@@ -2,28 +2,29 @@
 	import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import PageIconPicker from './PageIconPicker.svelte';
+	import ItemTypePicker from './ItemTypePicker.svelte';
+	import type { ItemType } from '../item-types';
 	import {
 		PAGE_BOTTOM_HANDLE,
 		PAGE_SOURCE_HANDLE,
 		PAGE_TARGET_HANDLE,
 		PAGE_TOP_HANDLE,
-		type PageFlowNode
+		type ItemFlowNode
 	} from '../flow';
 
-	type FocusablePageFlowNode = PageFlowNode & {
-		data: PageFlowNode['data'] & {
+	type FocusableItemFlowNode = ItemFlowNode & {
+		data: ItemFlowNode['data'] & {
 			focusTitle?: boolean;
 		};
 	};
 
-	let { id, data, selected = false }: NodeProps<FocusablePageFlowNode> = $props();
+	let { id, data, selected = false }: NodeProps<FocusableItemFlowNode> = $props();
 
-	const { updateNodeData } = useSvelteFlow<FocusablePageFlowNode>();
+	const { updateNodeData } = useSvelteFlow<FocusableItemFlowNode>();
 	const HANDLE_CLASS =
-		"h-8! w-8! border-0! bg-transparent! opacity-0 shadow-none! transition-opacity before:pointer-events-none before:absolute before:left-1/2 before:top-1/2 before:h-3.5 before:w-3.5 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:border-2 before:border-white before:bg-blue-500 before:shadow-sm before:content-[''] hover:opacity-100 group-hover/page-card:opacity-100 group-focus-within/page-card:opacity-100 [&.connectingfrom]:opacity-100 [&.connectingto]:opacity-100 [&.valid]:opacity-100";
+		"h-8! w-8! border-0! bg-transparent! opacity-0 shadow-none! transition-opacity before:pointer-events-none before:absolute before:left-1/2 before:top-1/2 before:h-3.5 before:w-3.5 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:border-2 before:border-white before:bg-blue-500 before:shadow-sm before:content-[''] hover:opacity-100 group-hover/item-card:opacity-100 group-focus-within/item-card:opacity-100 [&.connectingfrom]:opacity-100 [&.connectingto]:opacity-100 [&.valid]:opacity-100";
 
-	let iconPickerOpen = $state(false);
+	let typePickerOpen = $state(false);
 
 	function stopCanvasEvent(event: Event) {
 		event.stopPropagation();
@@ -46,9 +47,9 @@
 		updateNodeData(id, { description: event.currentTarget.value });
 	}
 
-	function handleIconChange(_: number, iconKey: string) {
-		updateNodeData(id, { icon: iconKey });
-		iconPickerOpen = false;
+	function handleTypeChange(_: number, type: ItemType) {
+		updateNodeData(id, { type });
+		typePickerOpen = false;
 	}
 
 	function titleFocusAttachment(shouldFocus: boolean | undefined): Attachment<HTMLInputElement> {
@@ -89,7 +90,7 @@
 
 <div
 	class={[
-		'page-card group/page-card w-[270px] overflow-visible rounded-lg border-2 border-border bg-card shadow-[var(--shadow-card)]',
+		'item-card group/item-card w-[270px] overflow-visible rounded-lg border-2 border-border bg-card shadow-[var(--shadow-card)]',
 		{
 			'selected border-blue-500!': selected
 		}
@@ -97,28 +98,28 @@
 >
 	<div
 		class={[
-			'page-header-row flex min-h-10 w-full cursor-grab touch-none items-center gap-0.5 rounded-t-md px-1 select-none active:cursor-grabbing',
+			'item-header-row flex min-h-10 w-full cursor-grab touch-none items-center gap-0.5 rounded-t-md px-1 select-none active:cursor-grabbing',
 			{
 				'bg-muted/80': selected,
 				'bg-muted/50': !selected
 			}
 		]}
 	>
-		<PageIconPicker
-			pageId={data.pageId}
-			pageTitle={data.title}
-			iconKey={data.icon}
-			open={iconPickerOpen}
+		<ItemTypePicker
+			itemId={data.itemId}
+			itemTitle={data.title}
+			currentType={data.type}
+			open={typePickerOpen}
 			onOpenChange={(_, open) => {
-				iconPickerOpen = open;
+				typePickerOpen = open;
 			}}
-			onIconChange={handleIconChange}
+			onTypeChange={handleTypeChange}
 			onStopCanvasEvent={stopCanvasEvent}
 		/>
 		<input
 			{@attach titleFocusAttachment(data.focusTitle)}
-			class="page-title-input nodrag nopan h-8 w-auto min-w-0 flex-[0_1_auto] cursor-text rounded-sm border-0 bg-transparent p-0 text-[0.78rem] leading-none font-medium text-secondary-foreground select-text focus:outline-none"
-			aria-label={`Page ${data.pageId} title`}
+			class="item-title-input nodrag nopan h-8 w-auto min-w-0 flex-[0_1_auto] cursor-text rounded-sm border-0 bg-transparent p-0 text-[0.78rem] leading-none font-medium text-secondary-foreground select-text focus:outline-none"
+			aria-label={`Item ${data.itemId} title`}
 			size={Math.max(data.title.length, 4)}
 			value={data.title}
 			onpointerdown={stopCanvasEvent}
@@ -130,11 +131,11 @@
 		/>
 	</div>
 
-	<div class="page-content grid min-h-24 gap-[10px] bg-transparent p-3 text-card-foreground select-none">
+	<div class="item-content grid min-h-24 gap-[10px] bg-transparent p-3 text-card-foreground select-none">
 		<Textarea
 			value={data.description}
-			placeholder="Describe this page"
-			aria-label={`Description for ${data.title || `page ${data.pageId}`}`}
+			placeholder="Describe this item"
+			aria-label={`Description for ${data.title || `item ${data.itemId}`}`}
 			class="nodrag nopan min-h-24 resize-none border-0 bg-transparent p-0 text-[0.78rem] leading-[1.35] shadow-none placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0"
 			oninput={handleDescriptionInput}
 			onpointerdown={stopCanvasEvent}

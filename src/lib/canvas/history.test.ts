@@ -8,14 +8,14 @@ import {
 import {
 	createPageFlowEdge,
 	createSectionNode,
-	pageToNode,
+	itemToNode,
 	type CanvasFlowNode,
 	type PageFlowEdge
 } from './flow';
-import { createPage } from './pages';
+import { createItem } from './items';
 
-function page(id: number, overrides: { title?: string; description?: string } = {}): CanvasFlowNode {
-	const node = pageToNode(createPage(id, { x: id * 10, y: id * 5 }));
+function item(id: number, overrides: { title?: string; description?: string } = {}): CanvasFlowNode {
+	const node = itemToNode(createItem(id, { x: id * 10, y: id * 5 }));
 	return {
 		...node,
 		data: {
@@ -27,19 +27,19 @@ function page(id: number, overrides: { title?: string; description?: string } = 
 }
 
 function edge(id: string, label?: string): PageFlowEdge {
-	return createPageFlowEdge(id, { source: 'page-1', target: 'page-2' }, label);
+	return createPageFlowEdge(id, { source: 'item-1', target: 'item-2' }, label);
 }
 
 describe('createContentSnapshot', () => {
 	test('is order-independent for nodes and edges', () => {
 		const a = createContentSnapshot({
 			name: 'Doc',
-			nodes: [page(1), page(2)],
+			nodes: [item(1), item(2)],
 			edges: [edge('edge-a'), edge('edge-b')]
 		});
 		const b = createContentSnapshot({
 			name: 'Doc',
-			nodes: [page(2), page(1)],
+			nodes: [item(2), item(1)],
 			edges: [edge('edge-b'), edge('edge-a')]
 		});
 
@@ -47,24 +47,24 @@ describe('createContentSnapshot', () => {
 	});
 
 	test('ignores selection and other transient node fields', () => {
-		const plain = createContentSnapshot({ name: 'Doc', nodes: [page(1)], edges: [] });
+		const plain = createContentSnapshot({ name: 'Doc', nodes: [item(1)], edges: [] });
 		const selected = createContentSnapshot({
 			name: 'Doc',
-			nodes: [{ ...page(1), selected: true, dragging: true } as CanvasFlowNode],
+			nodes: [{ ...item(1), selected: true, dragging: true } as CanvasFlowNode],
 			edges: []
 		});
 
 		expect(selected).toBe(plain);
 	});
 
-	test('drops page style (not owned) but keeps section style', () => {
-		const plain = createContentSnapshot({ name: 'Doc', nodes: [page(1)], edges: [] });
-		const styledPage = createContentSnapshot({
+	test('drops item style (not owned) but keeps section style', () => {
+		const plain = createContentSnapshot({ name: 'Doc', nodes: [item(1)], edges: [] });
+		const styledItem = createContentSnapshot({
 			name: 'Doc',
-			nodes: [{ ...page(1), style: 'z-index: 5;' } as CanvasFlowNode],
+			nodes: [{ ...item(1), style: 'z-index: 5;' } as CanvasFlowNode],
 			edges: []
 		});
-		expect(styledPage).toBe(plain);
+		expect(styledItem).toBe(plain);
 
 		const section = createSectionNode(1, { x: 0, y: 0 });
 		const snapshot = createContentSnapshot({ name: 'Doc', nodes: [section], edges: [] });
@@ -74,18 +74,18 @@ describe('createContentSnapshot', () => {
 
 describe('structuralSignature / classifyChange', () => {
 	test('text-only edits are classified as text', () => {
-		const before = createContentSnapshot({ name: 'Doc', nodes: [page(1)], edges: [edge('e', 'hi')] });
+		const before = createContentSnapshot({ name: 'Doc', nodes: [item(1)], edges: [edge('e', 'hi')] });
 		const titleEdit = createContentSnapshot({
 			name: 'Doc',
-			nodes: [page(1, { title: 'Renamed' })],
+			nodes: [item(1, { title: 'Renamed' })],
 			edges: [edge('e', 'hi')]
 		});
 		const labelEdit = createContentSnapshot({
 			name: 'Doc',
-			nodes: [page(1)],
+			nodes: [item(1)],
 			edges: [edge('e', 'changed')]
 		});
-		const nameEdit = createContentSnapshot({ name: 'Renamed doc', nodes: [page(1)], edges: [edge('e', 'hi')] });
+		const nameEdit = createContentSnapshot({ name: 'Renamed doc', nodes: [item(1)], edges: [edge('e', 'hi')] });
 
 		expect(structuralSignature(before)).toBe(structuralSignature(titleEdit));
 		expect(classifyChange(before, titleEdit)).toBe('text');
@@ -94,11 +94,11 @@ describe('structuralSignature / classifyChange', () => {
 	});
 
 	test('adds/removes/moves are classified as structural', () => {
-		const before = createContentSnapshot({ name: 'Doc', nodes: [page(1)], edges: [] });
-		const added = createContentSnapshot({ name: 'Doc', nodes: [page(1), page(2)], edges: [] });
+		const before = createContentSnapshot({ name: 'Doc', nodes: [item(1)], edges: [] });
+		const added = createContentSnapshot({ name: 'Doc', nodes: [item(1), item(2)], edges: [] });
 		const moved = createContentSnapshot({
 			name: 'Doc',
-			nodes: [{ ...page(1), position: { x: 999, y: 999 } }],
+			nodes: [{ ...item(1), position: { x: 999, y: 999 } }],
 			edges: []
 		});
 
@@ -107,21 +107,21 @@ describe('structuralSignature / classifyChange', () => {
 	});
 
 	test('identical snapshots are none', () => {
-		const snapshot = createContentSnapshot({ name: 'Doc', nodes: [page(1)], edges: [] });
+		const snapshot = createContentSnapshot({ name: 'Doc', nodes: [item(1)], edges: [] });
 		expect(classifyChange(snapshot, snapshot)).toBe('none');
 	});
 
 	test('a typing burst coalesces then a structural change forms a new step', () => {
-		const base = createContentSnapshot({ name: 'Doc', nodes: [page(1)], edges: [] });
-		const typed1 = createContentSnapshot({ name: 'Doc', nodes: [page(1, { title: 'H' })], edges: [] });
+		const base = createContentSnapshot({ name: 'Doc', nodes: [item(1)], edges: [] });
+		const typed1 = createContentSnapshot({ name: 'Doc', nodes: [item(1, { title: 'H' })], edges: [] });
 		const typed2 = createContentSnapshot({
 			name: 'Doc',
-			nodes: [page(1, { title: 'Hello' })],
+			nodes: [item(1, { title: 'Hello' })],
 			edges: []
 		});
 		const structural = createContentSnapshot({
 			name: 'Doc',
-			nodes: [page(1, { title: 'Hello' }), page(2)],
+			nodes: [item(1, { title: 'Hello' }), item(2)],
 			edges: []
 		});
 
@@ -133,7 +133,7 @@ describe('structuralSignature / classifyChange', () => {
 
 describe('decodeContentSnapshot', () => {
 	test('round-trips content and can be reserialized identically', () => {
-		const nodes = [page(1, { title: 'One' }), createSectionNode(2, { x: 40, y: 40 })];
+		const nodes = [item(1, { title: 'One' }), createSectionNode(2, { x: 40, y: 40 })];
 		const edges = [edge('e', 'label')];
 		const snapshot = createContentSnapshot({ name: 'Doc', nodes, edges });
 

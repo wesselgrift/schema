@@ -41,7 +41,7 @@
 		type XYPosition
 	} from '@xyflow/svelte';
 	import { isTextEntryTarget } from './keyboard';
-	import { createPage } from './pages';
+	import { createItem } from './items';
 	import {
 		DEFAULT_SECTION_SIZE,
 		MIN_SECTION_SIZE,
@@ -49,21 +49,21 @@
 		createSectionNode,
 		createPageFlowEdge,
 		getNextNumericEdgeId,
-		getNextNumericPageId,
+		getNextNumericItemId,
 		getNextNumericSectionId,
 		getNodeAbsolutePosition,
 		hasPageFlowEdge,
 		isPointInsideSection,
 		orderNodesForParenting,
 		PAGE_FLOW_EDGE_TYPE,
-		PAGE_NODE_TYPE,
-		pageToNode,
-		reparentPageNode,
+		ITEM_NODE_TYPE,
+		itemToNode,
+		reparentItemNode,
 		sectionContainsSection,
 		unparentSectionChildren,
 		type CanvasFlowNode,
 		type PageFlowEdge as PageFlowEdgeType,
-		type PageFlowNode as PageFlowNodeType,
+		type ItemFlowNode as ItemFlowNodeType,
 		type SectionFlowNode
 	} from './flow';
 	import {
@@ -73,7 +73,7 @@
 		type ContentSnapshot
 	} from './history';
 	import PageFlowEdge from './components/PageFlowEdge.svelte';
-	import PageFlowNode from './components/PageFlowNode.svelte';
+	import ItemFlowNode from './components/ItemFlowNode.svelte';
 	import SectionFlowNodeComponent from './components/SectionFlowNode.svelte';
 	import ExportSpecDialog from './ExportSpecDialog.svelte';
 	import {
@@ -92,7 +92,7 @@
 	import { buildShareUrl, decodeHashToPayload, encodeCanvasToHash, isShareTooLarge } from './share';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
-	type Tool = 'select' | 'add-page' | 'add-section';
+	type Tool = 'select' | 'add-item' | 'add-section';
 	type SectionDragState = {
 		pointerId: number;
 		startClient: XYPosition;
@@ -107,7 +107,7 @@
 	};
 
 	const nodeTypes = {
-		[PAGE_NODE_TYPE]: PageFlowNode,
+		[ITEM_NODE_TYPE]: ItemFlowNode,
 		[SECTION_NODE_TYPE]: SectionFlowNodeComponent
 	} satisfies NodeTypes;
 	const edgeTypes = { [PAGE_FLOW_EDGE_TYPE]: PageFlowEdge } satisfies EdgeTypes;
@@ -137,7 +137,7 @@
 	let edges = $state.raw<PageFlowEdgeType[]>(activeCanvas.edges);
 	let viewport = $state<Viewport>({ ...INITIAL_VIEWPORT, ...activeCanvas.viewport });
 	let activeTool = $state<Tool>('select');
-	let nextPageId = getNextNumericPageId(activeCanvas.nodes);
+	let nextItemId = getNextNumericItemId(activeCanvas.nodes);
 	let nextEdgeId = getNextNumericEdgeId(activeCanvas.edges);
 	let flowWrapper: HTMLElement | undefined;
 	let selectionStart: { x: number; y: number } | null = null;
@@ -276,7 +276,7 @@
 		nodes = orderNodesForParenting(decoded.nodes);
 		edges = decoded.edges;
 		projectName = decoded.name;
-		nextPageId = getNextNumericPageId(decoded.nodes);
+		nextItemId = getNextNumericItemId(decoded.nodes);
 		nextEdgeId = getNextNumericEdgeId(decoded.edges);
 
 		await tick();
@@ -396,7 +396,7 @@
 		edges = canvas.edges;
 		viewport = { ...INITIAL_VIEWPORT, ...canvas.viewport };
 		projectName = canvas.name;
-		nextPageId = getNextNumericPageId(canvas.nodes);
+		nextItemId = getNextNumericItemId(canvas.nodes);
 		nextEdgeId = getNextNumericEdgeId(canvas.edges);
 
 		lastContentSnapshot = serializeContent();
@@ -452,16 +452,16 @@
 		};
 	}
 
-	function addPageAtFlowPoint(flowPoint: XYPosition) {
-		const page = createPage(nextPageId++, flowPoint);
-		let pageNode = pageToNode(page, { focusTitle: true });
+	function addItemAtFlowPoint(flowPoint: XYPosition) {
+		const item = createItem(nextItemId++, flowPoint);
+		let itemNode = itemToNode(item, { focusTitle: true });
 
 		const section = getTopmostSectionContainingPoint(flowPoint, nodes);
-		let nextNodes: CanvasFlowNode[] = [...nodes, pageNode];
+		let nextNodes: CanvasFlowNode[] = [...nodes, itemNode];
 
 		if (section) {
-			pageNode = reparentPageNode(pageNode, section, nextNodes);
-			nextNodes = nextNodes.map((node) => (node.id === pageNode.id ? pageNode : node));
+			itemNode = reparentItemNode(itemNode, section, nextNodes);
+			nextNodes = nextNodes.map((node) => (node.id === itemNode.id ? itemNode : node));
 		}
 
 		nodes = orderNodesForParenting(nextNodes);
@@ -473,13 +473,13 @@
 	}
 
 	function handleCanvasPointerdown(event: PointerEvent) {
-		if (activeTool === 'add-page' && event.button === 0) {
-			if (isCanvasToolBlockedTarget(event.target, ADD_PAGE_BLOCKED_SELECTORS)) return;
+		if (activeTool === 'add-item' && event.button === 0) {
+			if (isCanvasToolBlockedTarget(event.target, ADD_ITEM_BLOCKED_SELECTORS)) return;
 
 			const flowPoint = clientPointToFlowPoint({ x: event.clientX, y: event.clientY });
 			if (!flowPoint) return;
 
-			addPageAtFlowPoint(flowPoint);
+			addItemAtFlowPoint(flowPoint);
 			event.preventDefault();
 			event.stopPropagation();
 			return;
@@ -577,18 +577,18 @@
 		let nextNodes: CanvasFlowNode[] = [...nodes, section];
 
 		if (!isTinyDrag) {
-			const enclosedPageIds = new Set(
+			const enclosedItemIds = new Set(
 				nodes
-					.filter((node): node is PageFlowNodeType => node.type === PAGE_NODE_TYPE)
+					.filter((node): node is ItemFlowNodeType => node.type === ITEM_NODE_TYPE)
 					.filter((node) => isPointInsideSection(getNodeAbsolutePosition(node, nodes), section))
 					.map((node) => node.id)
 			);
 
-			if (enclosedPageIds.size > 0) {
+			if (enclosedItemIds.size > 0) {
 				nextNodes = nextNodes.map((node) => {
-					if (node.type !== PAGE_NODE_TYPE || !enclosedPageIds.has(node.id)) return node;
+					if (node.type !== ITEM_NODE_TYPE || !enclosedItemIds.has(node.id)) return node;
 
-					return reparentPageNode(node, section, nextNodes);
+					return reparentItemNode(node, section, nextNodes);
 				});
 			}
 		}
@@ -607,12 +607,12 @@
 		};
 	}
 
-	// Interactive elements that should never trigger add-page placement. Note this
+	// Interactive elements that should never trigger add-item placement. Note this
 	// intentionally omits the generic `.nopan`/`.nodrag` wrapper classes: SvelteFlow
 	// adds `.nopan` to every draggable node wrapper (sections included), and blocking
-	// on it would stop pages from being placed inside sections. Page cards are still
-	// blocked explicitly via `.page-card`.
-	const ADD_PAGE_BLOCKED_SELECTORS = [
+	// on it would stop items from being placed inside sections. Item cards are still
+	// blocked explicitly via `.item-card`.
+	const ADD_ITEM_BLOCKED_SELECTORS = [
 		'button',
 		'a',
 		'input',
@@ -626,8 +626,8 @@
 		'.svelte-flow__resize-control',
 		'.svelte-flow__resize-control-line',
 		'.svelte-flow__resize-control-handle',
-		'.page-card',
-		'.page-header-row',
+		'.item-card',
+		'.item-header-row',
 		'.page-flow-label',
 		'.section-flow-title-input'
 	];
@@ -796,15 +796,15 @@
 	function handleNodeDrag({
 		nodes: draggedNodes
 	}: Parameters<NodeTargetEventWithPointer<MouseEvent | TouchEvent, CanvasFlowNode>>[0]) {
-		const draggedPage = draggedNodes.find((node): node is PageFlowNodeType => node.type === PAGE_NODE_TYPE);
-		if (!draggedPage) {
+		const draggedItem = draggedNodes.find((node): node is ItemFlowNodeType => node.type === ITEM_NODE_TYPE);
+		if (!draggedItem) {
 			setDropTargetSection(null);
 			return;
 		}
 
 		const nextNodes = mergeEventNodes(nodes, draggedNodes);
 
-		const section = getTopmostSectionContainingPoint(getNodeAbsolutePosition(draggedPage, nextNodes), nextNodes);
+		const section = getTopmostSectionContainingPoint(getNodeAbsolutePosition(draggedItem, nextNodes), nextNodes);
 		setDropTargetSection(section?.id ?? null);
 	}
 
@@ -815,11 +815,11 @@
 	function handleNodeDragStop({
 		nodes: draggedNodes
 	}: Parameters<NodeTargetEventWithPointer<MouseEvent | TouchEvent, CanvasFlowNode>>[0]) {
-		const draggedPageIds = new Set(
-			draggedNodes.filter((node) => node.type === PAGE_NODE_TYPE).map((node) => node.id)
+		const draggedItemIds = new Set(
+			draggedNodes.filter((node) => node.type === ITEM_NODE_TYPE).map((node) => node.id)
 		);
 
-		if (draggedPageIds.size === 0) {
+		if (draggedItemIds.size === 0) {
 			setDropTargetSection(null);
 			endGesture();
 			return;
@@ -827,16 +827,16 @@
 
 		let nextNodes = clearDropTargetSections(mergeEventNodes(nodes, draggedNodes));
 
-		for (const pageId of draggedPageIds) {
-			const pageNode = nextNodes.find(
-				(node): node is PageFlowNodeType => node.id === pageId && node.type === PAGE_NODE_TYPE
+		for (const itemId of draggedItemIds) {
+			const itemNode = nextNodes.find(
+				(node): node is ItemFlowNodeType => node.id === itemId && node.type === ITEM_NODE_TYPE
 			);
-			if (!pageNode) continue;
+			if (!itemNode) continue;
 
-			const section = getTopmostSectionContainingPoint(getNodeAbsolutePosition(pageNode, nextNodes), nextNodes);
-			const reparentedPage = reparentPageNode(pageNode, section, nextNodes);
+			const section = getTopmostSectionContainingPoint(getNodeAbsolutePosition(itemNode, nextNodes), nextNodes);
+			const reparentedItem = reparentItemNode(itemNode, section, nextNodes);
 
-			nextNodes = nextNodes.map((node) => (node.id === pageId ? reparentedPage : node));
+			nextNodes = nextNodes.map((node) => (node.id === itemId ? reparentedItem : node));
 		}
 
 		nodes = orderNodesForParenting(nextNodes);
@@ -931,8 +931,8 @@
 		switch (key.toLowerCase()) {
 			case 'v':
 				return 'select';
-			case 'p':
-				return 'add-page';
+			case 'i':
+				return 'add-item';
 			case 's':
 				return 'add-section';
 			default:
@@ -1018,10 +1018,10 @@
 			class={[
 				'canvas-flow',
 				{
-					'canvas-flow--add-node': activeTool === 'add-page' || activeTool === 'add-section'
+					'canvas-flow--add-node': activeTool === 'add-item' || activeTool === 'add-section'
 				}
 			]}
-			aria-label="Canvas. Select pages, connect handles, press P to add a page, or press S to add a section."
+			aria-label="Canvas. Select items, connect handles, press I to add an item, or press S to add a section."
 			onpaneclick={handlePaneClick}
 			onbeforeconnect={handleBeforeConnect}
 			onbeforereconnect={handleBeforeReconnect}
@@ -1291,14 +1291,14 @@
 					/>
 					Select
 				</Tabs.Trigger>
-				<Tabs.Trigger value="add-page" class="px-2 py-0">
+				<Tabs.Trigger value="add-item" class="px-2 py-0">
 					<HugeiconsIcon
 						icon={FileAddIcon}
 						data-icon="inline-start"
 						strokeWidth={2}
 						aria-hidden="true"
 					/>
-					Add page
+					Add item
 				</Tabs.Trigger>
 				<Tabs.Trigger value="add-section" class="px-2 py-0">
 					<HugeiconsIcon

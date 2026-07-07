@@ -1,4 +1,4 @@
-import { PAGE_NODE_TYPE, type CanvasFlowNode, type PageFlowEdge } from './flow';
+import { ITEM_NODE_TYPE, type CanvasFlowNode, type PageFlowEdge } from './flow';
 import { serializeEdge, serializeNode } from './persistence';
 
 /**
@@ -36,7 +36,7 @@ function normalizeNode(node: CanvasFlowNode): CanvasFlowNode {
 	// Page `style` is not owned by us (SvelteFlow can set it on selection); drop
 	// it so selection never changes the snapshot. Section `style` holds size and
 	// is required to restore the section, so it is kept.
-	if (serialized.type === PAGE_NODE_TYPE && serialized.style !== undefined) {
+	if (serialized.type === ITEM_NODE_TYPE && serialized.style !== undefined) {
 		const { style: _style, ...rest } = serialized;
 		return rest as CanvasFlowNode;
 	}

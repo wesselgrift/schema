@@ -1,22 +1,24 @@
 import {
-	PAGE_NODE_TYPE,
+	ITEM_NODE_TYPE,
 	SECTION_NODE_TYPE,
 	type CanvasFlowNode,
 	type PageFlowEdge,
-	type PageFlowNode,
+	type ItemFlowNode,
 	type SectionFlowNode
 } from './flow';
+import { getItemTypeLabel, type ItemType } from './item-types';
 
-export type IaPage = {
+export type IaItem = {
 	id: string;
 	title: string;
 	description: string;
+	type: ItemType;
 };
 
 export type IaSection = {
 	id: string;
 	title: string;
-	pages: IaPage[];
+	items: IaItem[];
 };
 
 export type IaFlow = {
@@ -27,71 +29,73 @@ export type IaFlow = {
 
 export type IaModel = {
 	sections: IaSection[];
-	ungroupedPages: IaPage[];
+	ungroupedItems: IaItem[];
 	flows: IaFlow[];
 };
 
-const UNKNOWN_PAGE_TITLE = 'Untitled page';
+const UNKNOWN_ITEM_TITLE = 'Untitled item';
 
-function toIaPage(node: PageFlowNode): IaPage {
+function toIaItem(node: ItemFlowNode): IaItem {
 	return {
 		id: node.id,
-		title: node.data.title.trim() || UNKNOWN_PAGE_TITLE,
-		description: node.data.description.trim()
+		title: node.data.title.trim() || UNKNOWN_ITEM_TITLE,
+		description: node.data.description.trim(),
+		type: node.data.type
 	};
 }
 
 /**
  * Builds a position-free, lossless model of the information architecture.
- * Page descriptions and connector labels are preserved verbatim so the model
+ * Item descriptions and connector labels are preserved verbatim so the model
  * captures every bit of context; downstream rendering never has to infer them.
  */
 export function buildIaModel(nodes: CanvasFlowNode[], edges: PageFlowEdge[]): IaModel {
-	const pageNodes = nodes.filter((node): node is PageFlowNode => node.type === PAGE_NODE_TYPE);
+	const itemNodes = nodes.filter((node): node is ItemFlowNode => node.type === ITEM_NODE_TYPE);
 	const sectionNodes = nodes.filter(
 		(node): node is SectionFlowNode => node.type === SECTION_NODE_TYPE
 	);
 
-	const pagesBySection = new Map<string, IaPage[]>();
-	const ungroupedPages: IaPage[] = [];
+	const itemsBySection = new Map<string, IaItem[]>();
+	const ungroupedItems: IaItem[] = [];
 
-	for (const node of pageNodes) {
-		const iaPage = toIaPage(node);
+	for (const node of itemNodes) {
+		const iaItem = toIaItem(node);
 		const parentId = node.parentId;
 
 		if (parentId && sectionNodes.some((section) => section.id === parentId)) {
-			const bucket = pagesBySection.get(parentId) ?? [];
-			bucket.push(iaPage);
-			pagesBySection.set(parentId, bucket);
+			const bucket = itemsBySection.get(parentId) ?? [];
+			bucket.push(iaItem);
+			itemsBySection.set(parentId, bucket);
 		} else {
-			ungroupedPages.push(iaPage);
+			ungroupedItems.push(iaItem);
 		}
 	}
 
 	const sections: IaSection[] = sectionNodes.map((section) => ({
 		id: section.id,
 		title: section.data.title.trim() || `Section ${section.data.sectionId}`,
-		pages: pagesBySection.get(section.id) ?? []
+		items: itemsBySection.get(section.id) ?? []
 	}));
 
-	const pageTitleById = new Map(pageNodes.map((node) => [node.id, toIaPage(node).title]));
+	const itemTitleById = new Map(itemNodes.map((node) => [node.id, toIaItem(node).title]));
 
 	const flows: IaFlow[] = edges
-		.filter((edge) => pageTitleById.has(edge.source) && pageTitleById.has(edge.target))
+		.filter((edge) => itemTitleById.has(edge.source) && itemTitleById.has(edge.target))
 		.map((edge) => ({
-			from: pageTitleById.get(edge.source) ?? UNKNOWN_PAGE_TITLE,
-			to: pageTitleById.get(edge.target) ?? UNKNOWN_PAGE_TITLE,
+			from: itemTitleById.get(edge.source) ?? UNKNOWN_ITEM_TITLE,
+			to: itemTitleById.get(edge.target) ?? UNKNOWN_ITEM_TITLE,
 			condition: (edge.data?.label ?? '').trim()
 		}));
 
-	return { sections, ungroupedPages, flows };
+	return { sections, ungroupedItems, flows };
 }
 
-function renderPageList(pages: IaPage[]): string {
-	return pages
-		.map((page) => {
-			if (page.description === '') return `- **${page.title}**`;
-			return `- **${page.title}**\n\n${indent(page.description)}`;
+function renderItemList(items: IaItem[]): string {
+	return items
+		.map((item) => {
+			const label = getItemTypeLabel(item.type);
+			if (item.description === '') return `- **${item.title}** (${label})`;
+			return `- **${item.title}** (${label})\n\n${indent(item.description)}`;
 		})
 		.join('\n\n');
 }
@@ -115,13 +119,13 @@ export function renderContextMarkdown(model: IaModel, projectName: string): stri
 		parts.push('## Sections');
 		for (const section of model.sections) {
 			const body =
-				section.pages.length > 0 ? renderPageList(section.pages) : '_No pages in this section._';
+				section.items.length > 0 ? renderItemList(section.items) : '_No items in this section._';
 			parts.push(`### ${section.title}\n\n${body}`);
 		}
 	}
 
-	if (model.ungroupedPages.length > 0) {
-		parts.push(`## Ungrouped pages\n\n${renderPageList(model.ungroupedPages)}`);
+	if (model.ungroupedItems.length > 0) {
+		parts.push(`## Ungrouped items\n\n${renderItemList(model.ungroupedItems)}`);
 	}
 
 	if (model.flows.length > 0) {
@@ -134,8 +138,8 @@ export function renderContextMarkdown(model: IaModel, projectName: string): stri
 		parts.push(`## Navigation flows\n\n${flowLines}`);
 	}
 
-	if (model.sections.length === 0 && model.ungroupedPages.length === 0) {
-		parts.push('_No pages have been created yet._');
+	if (model.sections.length === 0 && model.ungroupedItems.length === 0) {
+		parts.push('_No items have been created yet._');
 	}
 
 	return `${parts.join('\n\n')}\n`;

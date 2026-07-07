@@ -1,22 +1,23 @@
 import type { Connection, Edge, Node, XYPosition } from '@xyflow/svelte';
-import type { Page } from './pages';
+import type { Item } from './items';
+import type { ItemType } from './item-types';
 
-export const PAGE_NODE_TYPE = 'page';
+export const ITEM_NODE_TYPE = 'item';
 export const SECTION_NODE_TYPE = 'section';
 export const PAGE_FLOW_EDGE_TYPE = 'page-flow';
 export const PAGE_SOURCE_HANDLE = 'right';
 export const PAGE_TARGET_HANDLE = 'left';
 export const PAGE_TOP_HANDLE = 'top';
 export const PAGE_BOTTOM_HANDLE = 'bottom';
-export const PAGE_NODE_DRAG_HANDLE = '.page-header-row';
+export const ITEM_NODE_DRAG_HANDLE = '.item-header-row';
 export const DEFAULT_SECTION_SIZE = { width: 480, height: 320 };
 export const MIN_SECTION_SIZE = { width: 240, height: 160 };
 
-export type PageNodeData = {
-	pageId: number;
+export type ItemNodeData = {
+	itemId: number;
 	title: string;
 	description: string;
-	icon: string;
+	type: ItemType;
 	focusTitle?: boolean;
 };
 
@@ -35,19 +36,19 @@ export type SectionNodeData = {
 	isDropTarget?: boolean;
 };
 
-export type PageFlowNode = Node<PageNodeData, typeof PAGE_NODE_TYPE>;
+export type ItemFlowNode = Node<ItemNodeData, typeof ITEM_NODE_TYPE>;
 export type SectionFlowNode = Node<SectionNodeData, typeof SECTION_NODE_TYPE>;
-export type CanvasFlowNode = PageFlowNode | SectionFlowNode;
+export type CanvasFlowNode = ItemFlowNode | SectionFlowNode;
 export type PageFlowEdge = Edge<PageFlowEdgeData, typeof PAGE_FLOW_EDGE_TYPE>;
 type PageFlowConnection = Pick<Connection, 'source' | 'target'> &
 	Partial<Pick<Connection, 'sourceHandle' | 'targetHandle'>>;
 
-export function pageIdToNodeId(pageId: number): string {
-	return `page-${pageId}`;
+export function itemIdToNodeId(itemId: number): string {
+	return `item-${itemId}`;
 }
 
-export function nodeIdToPageId(nodeId: string): number | null {
-	const match = /^page-(\d+)$/.exec(nodeId);
+export function nodeIdToItemId(nodeId: string): number | null {
+	const match = /^item-(\d+)$/.exec(nodeId);
 	if (!match) return null;
 
 	return Number(match[1]);
@@ -64,17 +65,17 @@ export function nodeIdToSectionId(nodeId: string): number | null {
 	return Number(match[1]);
 }
 
-export function pageToNode(page: Page, options: { focusTitle?: boolean } = {}): PageFlowNode {
+export function itemToNode(item: Item, options: { focusTitle?: boolean } = {}): ItemFlowNode {
 	return {
-		id: pageIdToNodeId(page.id),
-		type: PAGE_NODE_TYPE,
-		position: { x: page.x, y: page.y },
-		dragHandle: PAGE_NODE_DRAG_HANDLE,
+		id: itemIdToNodeId(item.id),
+		type: ITEM_NODE_TYPE,
+		position: { x: item.x, y: item.y },
+		dragHandle: ITEM_NODE_DRAG_HANDLE,
 		data: {
-			pageId: page.id,
-			title: page.title,
-			description: page.description,
-			icon: page.icon,
+			itemId: item.id,
+			title: item.title,
+			description: item.description,
+			type: item.type,
 			...(options.focusTitle ? { focusTitle: true } : {})
 		}
 	};
@@ -108,14 +109,14 @@ export function createSectionNode(
 	};
 }
 
-export function pageFromNode(node: PageFlowNode): Page {
+export function itemFromNode(node: ItemFlowNode): Item {
 	return {
-		id: node.data.pageId,
+		id: node.data.itemId,
 		x: node.position.x,
 		y: node.position.y,
 		title: node.data.title,
 		description: node.data.description,
-		icon: node.data.icon
+		type: node.data.type
 	};
 }
 
@@ -207,23 +208,23 @@ export function sectionContainsSection(outer: SectionFlowNode, inner: SectionFlo
 	);
 }
 
-export function reparentPageNode(
-	pageNode: PageFlowNode,
+export function reparentItemNode(
+	itemNode: ItemFlowNode,
 	section: SectionFlowNode | null,
 	nodes: CanvasFlowNode[]
-): PageFlowNode {
-	const absolutePosition = getNodeAbsolutePosition(pageNode, nodes);
+): ItemFlowNode {
+	const absolutePosition = getNodeAbsolutePosition(itemNode, nodes);
 
 	if (!section) {
-		const { parentId: _parentId, ...rootPageNode } = pageNode;
+		const { parentId: _parentId, ...rootItemNode } = itemNode;
 		return {
-			...rootPageNode,
+			...rootItemNode,
 			position: absolutePosition
 		};
 	}
 
 	return {
-		...pageNode,
+		...itemNode,
 		parentId: section.id,
 		position: getSectionRelativePosition(absolutePosition, section)
 	};
@@ -234,11 +235,11 @@ export function unparentSectionChildren(nodes: CanvasFlowNode[], sectionId: stri
 	if (!section) return nodes;
 
 	return nodes.map((node) => {
-		if (node.parentId !== sectionId || node.type !== PAGE_NODE_TYPE) return node;
+		if (node.parentId !== sectionId || node.type !== ITEM_NODE_TYPE) return node;
 
-		const { parentId: _parentId, ...rootPageNode } = node;
+		const { parentId: _parentId, ...rootItemNode } = node;
 		return {
-			...rootPageNode,
+			...rootItemNode,
 			position: getSectionAbsolutePosition(node.position, section)
 		};
 	});
@@ -251,10 +252,10 @@ export function orderNodesForParenting(nodes: CanvasFlowNode[]): CanvasFlowNode[
 	return [...sections, ...nonSections];
 }
 
-export function getNextNumericPageId(nodes: Pick<Node, 'id'>[]): number {
-	const pageIds = nodes.map((node) => nodeIdToPageId(node.id)).filter((id): id is number => id !== null);
+export function getNextNumericItemId(nodes: Pick<Node, 'id'>[]): number {
+	const itemIds = nodes.map((node) => nodeIdToItemId(node.id)).filter((id): id is number => id !== null);
 
-	return pageIds.length === 0 ? 1 : Math.max(...pageIds) + 1;
+	return itemIds.length === 0 ? 1 : Math.max(...itemIds) + 1;
 }
 
 export function nodeIdToEdgeNumber(edgeId: string): number | null {

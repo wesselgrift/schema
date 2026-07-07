@@ -4,12 +4,13 @@ export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 
 const SPEC_SYSTEM_PROMPT = `You are a senior product engineer writing a specification document that another engineer will load into an LLM-powered IDE (Cursor, Claude Code) to build the described application.
 
-You are given a faithful description of an information architecture: sections, pages with descriptions, and navigation flows between pages. Some flows include conditions.
+You are given a faithful description of an information architecture: sections, items with descriptions, and navigation flows between items. Each item has a type shown in parentheses after its title (e.g. Page, Form, Backend service, Database, API endpoint). Some flows include conditions.
 
 Write a clear, well-structured Markdown specification that a coding agent can implement from. Rules:
-- Preserve every page description and every flow condition. Treat them as hard requirements, quoting them where useful.
+- Preserve every item description and every flow condition. Treat them as hard requirements, quoting them where useful.
+- Respect each item's type; describe it according to what that type implies (a UI page, a backend service, a database, etc.).
 - Do not invent features, screens, or flows that are not implied by the input.
-- Organize by section, then pages, then flows. Make navigation conditions explicit (e.g. guards, states, prerequisites).
+- Organize by section, then items, then flows. Make navigation conditions explicit (e.g. guards, states, prerequisites).
 - Prefer precise, implementation-oriented language over marketing prose.
 - Output only the Markdown document, with no preamble or commentary.`;
 

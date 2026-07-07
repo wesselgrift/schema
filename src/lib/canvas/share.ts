@@ -2,7 +2,7 @@ import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from
 import type { Viewport } from '@xyflow/svelte';
 import {
 	PAGE_FLOW_EDGE_TYPE,
-	PAGE_NODE_TYPE,
+	ITEM_NODE_TYPE,
 	SECTION_NODE_TYPE,
 	type CanvasFlowNode,
 	type PageFlowEdge
@@ -26,7 +26,7 @@ export type SharePayload = {
 	viewport: Viewport;
 };
 
-const VALID_NODE_TYPES = new Set([PAGE_NODE_TYPE, SECTION_NODE_TYPE]);
+const VALID_NODE_TYPES = new Set([ITEM_NODE_TYPE, SECTION_NODE_TYPE]);
 
 export function encodeCanvasToHash(patch: CanvasPatch): string {
 	const payload: SharePayload = {

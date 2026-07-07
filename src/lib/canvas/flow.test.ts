@@ -5,45 +5,45 @@ import {
 	getNextNumericEdgeId,
 	getNextNumericSectionId,
 	getNodeAbsolutePosition,
-	getNextNumericPageId,
+	getNextNumericItemId,
 	getSectionAbsolutePosition,
 	getSectionRelativePosition,
 	hasPageFlowEdge,
 	isPointInsideSection,
 	orderNodesForParenting,
-	pageFromNode,
-	pageIdToNodeId,
-	pageToNode,
-	reparentPageNode,
+	itemFromNode,
+	itemIdToNodeId,
+	itemToNode,
+	reparentItemNode,
 	setEdgeLabel
 } from './flow';
-import { createPage } from './pages';
+import { createItem } from './items';
 
 describe('canvas flow helpers', () => {
-	test('converts a page to a centered Svelte Flow page node', () => {
-		const page = {
-			...createPage(3, { x: 120, y: -40 }),
+	test('converts an item to a centered Svelte Flow item node', () => {
+		const item = {
+			...createItem(3, { x: 120, y: -40 }),
 			title: 'Checkout',
 			description: 'Checkout flow',
-			icon: 'BrowserIcon'
+			type: 'page' as const
 		};
 
-		expect(pageToNode(page)).toEqual({
-			id: 'page-3',
-			type: 'page',
+		expect(itemToNode(item)).toEqual({
+			id: 'item-3',
+			type: 'item',
 			position: { x: 120, y: -40 },
-			dragHandle: '.page-header-row',
+			dragHandle: '.item-header-row',
 			data: {
-				pageId: 3,
+				itemId: 3,
 				title: 'Checkout',
 				description: 'Checkout flow',
-				icon: 'BrowserIcon'
+				type: 'page'
 			}
 		});
 	});
 
-	test('converts a moved and edited page node back to the page model', () => {
-		const node = pageToNode(createPage(3, { x: 120, y: -40 }));
+	test('converts a moved and edited item node back to the item model', () => {
+		const node = itemToNode(createItem(3, { x: 120, y: -40 }));
 		const editedNode = {
 			...node,
 			position: { x: 200, y: 80 },
@@ -51,33 +51,33 @@ describe('canvas flow helpers', () => {
 				...node.data,
 				title: 'Search',
 				description: 'Search results',
-				icon: 'BrowserIcon'
+				type: 'list' as const
 			}
 		};
 
-		expect(pageFromNode(editedNode)).toEqual({
+		expect(itemFromNode(editedNode)).toEqual({
 			id: 3,
 			x: 200,
 			y: 80,
 			title: 'Search',
 			description: 'Search results',
-			icon: 'BrowserIcon'
+			type: 'list'
 		});
 	});
 
 	test('creates an unlabeled page flow edge from a connection', () => {
 		expect(
 			createPageFlowEdge('edge-1', {
-				source: 'page-1',
-				target: 'page-2',
+				source: 'item-1',
+				target: 'item-2',
 				sourceHandle: 'right',
 				targetHandle: 'left'
 			})
 		).toEqual({
 			id: 'edge-1',
 			type: 'page-flow',
-			source: 'page-1',
-			target: 'page-2',
+			source: 'item-1',
+			target: 'item-2',
 			sourceHandle: 'right',
 			targetHandle: 'left',
 			data: {}
@@ -86,8 +86,8 @@ describe('canvas flow helpers', () => {
 
 	test('updates an edge label immutably', () => {
 		const edges = [
-			createPageFlowEdge('edge-1', { source: 'page-1', target: 'page-2' }),
-			createPageFlowEdge('edge-2', { source: 'page-2', target: 'page-3' })
+			createPageFlowEdge('edge-1', { source: 'item-1', target: 'item-2' }),
+			createPageFlowEdge('edge-2', { source: 'item-2', target: 'item-3' })
 		];
 
 		const updatedEdges = setEdgeLabel(edges, 'edge-1', 'continues to');
@@ -104,8 +104,8 @@ describe('canvas flow helpers', () => {
 	test('detects duplicate page flow edges by endpoints and handles', () => {
 		const edges = [
 			createPageFlowEdge('edge-1', {
-				source: 'page-1',
-				target: 'page-2',
+				source: 'item-1',
+				target: 'item-2',
 				sourceHandle: 'right',
 				targetHandle: 'left'
 			})
@@ -113,33 +113,33 @@ describe('canvas flow helpers', () => {
 
 		expect(
 			hasPageFlowEdge(edges, {
-				source: 'page-1',
-				target: 'page-2',
+				source: 'item-1',
+				target: 'item-2',
 				sourceHandle: 'right',
 				targetHandle: 'left'
 			})
 		).toBe(true);
-		expect(hasPageFlowEdge(edges, { source: 'page-2', target: 'page-1' })).toBe(false);
+		expect(hasPageFlowEdge(edges, { source: 'item-2', target: 'item-1' })).toBe(false);
 	});
 
-	test('finds the next numeric page id from flow node ids', () => {
+	test('finds the next numeric item id from flow node ids', () => {
 		expect(
-			getNextNumericPageId([
-				pageToNode(createPage(1, { x: 0, y: 0 })),
-				pageToNode(createPage(8, { x: 0, y: 0 }))
+			getNextNumericItemId([
+				itemToNode(createItem(1, { x: 0, y: 0 })),
+				itemToNode(createItem(8, { x: 0, y: 0 }))
 			])
 		).toBe(9);
 		expect(
-			getNextNumericPageId([{ ...pageToNode(createPage(1, { x: 0, y: 0 })), id: 'draft' }])
+			getNextNumericItemId([{ ...itemToNode(createItem(1, { x: 0, y: 0 })), id: 'draft' }])
 		).toBe(1);
-		expect(pageIdToNodeId(12)).toBe('page-12');
+		expect(itemIdToNodeId(12)).toBe('item-12');
 	});
 
 	test('finds the next numeric edge id from edge ids', () => {
 		expect(
 			getNextNumericEdgeId([
-				createPageFlowEdge('edge-1', { source: 'page-1', target: 'page-2' }),
-				createPageFlowEdge('edge-4', { source: 'page-2', target: 'page-3' })
+				createPageFlowEdge('edge-1', { source: 'item-1', target: 'item-2' }),
+				createPageFlowEdge('edge-4', { source: 'item-2', target: 'item-3' })
 			])
 		).toBe(5);
 		expect(getNextNumericEdgeId([])).toBe(1);
@@ -162,19 +162,19 @@ describe('canvas flow helpers', () => {
 		});
 	});
 
-	test('converts page positions between root and section-relative coordinates', () => {
+	test('converts item positions between root and section-relative coordinates', () => {
 		const section = createSectionNode(1, { x: 400, y: 300 });
-		const page = pageToNode(createPage(1, { x: 520, y: 260 }));
-		const reparented = reparentPageNode(page, section, [section, page]);
+		const item = itemToNode(createItem(1, { x: 520, y: 260 }));
+		const reparented = reparentItemNode(item, section, [section, item]);
 
 		expect(reparented).toMatchObject({
 			parentId: 'section-1',
 			position: { x: 360, y: 120 }
 		});
 		expect(getNodeAbsolutePosition(reparented, [section, reparented])).toEqual({ x: 520, y: 260 });
-		const rootPage = reparentPageNode(reparented, null, [section, reparented]);
-		expect(rootPage.parentId).toBeUndefined();
-		expect(rootPage.position).toEqual({ x: 520, y: 260 });
+		const rootItem = reparentItemNode(reparented, null, [section, reparented]);
+		expect(rootItem.parentId).toBeUndefined();
+		expect(rootItem.position).toEqual({ x: 520, y: 260 });
 	});
 
 	test('converts section relative and absolute positions', () => {
@@ -191,11 +191,11 @@ describe('canvas flow helpers', () => {
 		expect(isPointInsideSection({ x: 351, y: 200 }, section)).toBe(false);
 	});
 
-	test('keeps sections before child pages for Svelte Flow parenting', () => {
-		const page = pageToNode(createPage(1, { x: 0, y: 0 }));
+	test('keeps sections before child items for Svelte Flow parenting', () => {
+		const item = itemToNode(createItem(1, { x: 0, y: 0 }));
 		const section = createSectionNode(1, { x: 100, y: 100 });
 
-		expect(orderNodesForParenting([page, section])).toEqual([section, page]);
+		expect(orderNodesForParenting([item, section])).toEqual([section, item]);
 		expect(getNextNumericSectionId([section, createSectionNode(8, { x: 0, y: 0 })])).toBe(9);
 	});
 });

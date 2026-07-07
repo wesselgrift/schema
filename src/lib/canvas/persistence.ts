@@ -3,7 +3,7 @@ import {
 	SECTION_NODE_TYPE,
 	type CanvasFlowNode,
 	type PageFlowEdge,
-	type PageFlowNode,
+	type ItemFlowNode,
 	type SectionFlowNode
 } from './flow';
 
@@ -80,12 +80,12 @@ export function serializeNode(node: CanvasFlowNode): CanvasFlowNode {
 	return {
 		...base,
 		data: {
-			pageId: data.pageId,
+			itemId: data.itemId,
 			title: data.title,
 			description: data.description,
-			icon: data.icon
+			type: data.type
 		}
-	} as PageFlowNode;
+	} as ItemFlowNode;
 }
 
 export function serializeEdge(edge: PageFlowEdge): PageFlowEdge {
