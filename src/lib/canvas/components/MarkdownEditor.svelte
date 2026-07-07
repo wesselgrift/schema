@@ -26,6 +26,7 @@
 	}: Props = $props();
 
 	let view: EditorView | undefined;
+	let didAutofocus = false;
 
 	const theme = EditorView.theme({
 		'&': {
@@ -96,8 +97,9 @@
 				nextView.contentDOM.setAttribute('aria-label', ariaLabel);
 			}
 
-			if (shouldFocus) {
+			if (shouldFocus && !didAutofocus) {
 				nextView.focus();
+				didAutofocus = true;
 			}
 
 			return () => {

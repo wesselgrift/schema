@@ -32,6 +32,16 @@
 	}: Props = $props();
 
 	let typePickerOpen = $state(false);
+	let editorAutofocusOnOpen = $state(false);
+	let wasOpen = false;
+
+	$effect(() => {
+		const isOpen = open;
+		if (isOpen && !wasOpen) {
+			editorAutofocusOnOpen = title.trim() !== '';
+		}
+		wasOpen = isOpen;
+	});
 
 	function handleTypeChange(_: number, next: ItemType) {
 		onTypeChange(next);
@@ -55,7 +65,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content showCloseButton={false} class="flex max-h-[85vh] flex-col gap-4 sm:max-w-2xl">
+	<Dialog.Content showCloseButton={false} class="flex max-h-[92vh] flex-col gap-4 sm:max-w-[60rem]">
 		<Dialog.Title class="sr-only">Edit item</Dialog.Title>
 		<Dialog.Description class="sr-only">
 			Edit the item title and its markdown description.
@@ -75,7 +85,7 @@
 			/>
 			<input
 				{@attach focusOnMount()}
-				class="min-w-0 flex-1 rounded-sm border-0 bg-transparent p-0 text-lg font-semibold text-foreground focus:outline-none"
+				class="item-detail-title-input h-8 w-auto min-w-0 flex-[0_1_auto] rounded-md border-2 border-transparent bg-transparent px-2 text-lg font-semibold text-foreground outline-none transition-colors hover:bg-input/50 focus:border-blue-500 focus:bg-white placeholder:text-muted-foreground"
 				aria-label={`Item ${itemId} title`}
 				placeholder="Untitled item"
 				value={title}
@@ -88,7 +98,7 @@
 						type="button"
 						variant="outline"
 						size="icon-lg"
-						class="shrink-0"
+						class="ml-auto shrink-0"
 						aria-label="Close"
 					>
 						<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
@@ -99,12 +109,12 @@
 		</div>
 
 		<div
-			class="relative flex min-h-[50vh] flex-1 flex-col overflow-y-auto rounded-md border border-border bg-card p-3"
+			class="relative flex min-h-[65vh] flex-1 flex-col overflow-y-auto rounded-md border border-border bg-card p-3"
 		>
 			<MarkdownEditor
 				value={description}
 				oninput={onDescriptionChange}
-				autofocus={title.trim() !== ''}
+				autofocus={editorAutofocusOnOpen}
 				ariaLabel={`Description for ${title.trim() || `item ${itemId}`}`}
 				placeholder="Describe this item. Markdown supported."
 				class="min-h-0 flex-1"
@@ -123,3 +133,9 @@
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
+
+<style>
+	.item-detail-title-input {
+		field-sizing: content;
+	}
+</style>
