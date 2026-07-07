@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
 	import type { Attachment } from 'svelte/attachments';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { UnfoldMoreIcon } from '@hugeicons/core-free-icons';
+	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import ItemTypePicker from './ItemTypePicker.svelte';
+	import ItemDetailDialog from './ItemDetailDialog.svelte';
 	import type { ItemType } from '../item-types';
 	import {
 		PAGE_BOTTOM_HANDLE,
@@ -25,9 +29,15 @@
 		"h-8! w-8! border-0! bg-transparent! opacity-0 shadow-none! transition-opacity before:pointer-events-none before:absolute before:left-1/2 before:top-1/2 before:h-3.5 before:w-3.5 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:border-2 before:border-white before:bg-blue-500 before:shadow-sm before:content-[''] hover:opacity-100 group-hover/item-card:opacity-100 group-focus-within/item-card:opacity-100 [&.connectingfrom]:opacity-100 [&.connectingto]:opacity-100 [&.valid]:opacity-100";
 
 	let typePickerOpen = $state(false);
+	let detailOpen = $state(false);
 
 	function stopCanvasEvent(event: Event) {
 		event.stopPropagation();
+	}
+
+	function openDetail(event: Event) {
+		event.stopPropagation();
+		detailOpen = true;
 	}
 
 	function handleEditableKeydown(event: KeyboardEvent & { currentTarget: HTMLInputElement | HTMLTextAreaElement }) {
@@ -129,6 +139,22 @@
 			onkeydown={handleEditableKeydown}
 			oninput={handleTitleInput}
 		/>
+		<Button
+			type="button"
+			variant="outline"
+			size="icon-lg"
+			data-item-header-control
+			class="item-expand-trigger nodrag nopan ml-auto shrink-0 border-none opacity-0 text-muted-foreground transition-[opacity,color] group-hover/item-card:opacity-100 group-hover/item-card:text-muted-foreground group-focus-within/item-card:opacity-100 group-focus-within/item-card:text-muted-foreground hover:text-foreground"
+			aria-label={`Expand ${data.title || `item ${data.itemId}`}`}
+			onpointerdown={stopCanvasEvent}
+			onpointermove={stopCanvasEvent}
+			onpointerup={stopCanvasEvent}
+			onpointercancel={stopCanvasEvent}
+			onkeydown={stopCanvasEvent}
+			onclick={openDetail}
+		>
+			<HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={2} aria-hidden="true" />
+		</Button>
 	</div>
 
 	<div class="item-content grid min-h-24 gap-[10px] bg-transparent p-3 text-card-foreground select-none">
@@ -136,7 +162,7 @@
 			value={data.description}
 			placeholder="Describe this item"
 			aria-label={`Description for ${data.title || `item ${data.itemId}`}`}
-			class="nodrag nopan min-h-24 resize-none border-0 bg-transparent p-0 text-[0.78rem] leading-[1.35] shadow-none placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0"
+			class="nodrag nopan max-h-30 min-h-24 resize-none overflow-y-auto border-0 bg-transparent p-0 text-[0.78rem] leading-[1.35] shadow-none placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:ring-0"
 			oninput={handleDescriptionInput}
 			onpointerdown={stopCanvasEvent}
 			onpointermove={stopCanvasEvent}
@@ -171,3 +197,14 @@
 		class={`${HANDLE_CLASS} bottom-[-12px]!`}
 	/>
 </div>
+
+<ItemDetailDialog
+	bind:open={detailOpen}
+	itemId={data.itemId}
+	title={data.title}
+	description={data.description}
+	type={data.type}
+	onTitleChange={(value) => updateNodeData(id, { title: value })}
+	onDescriptionChange={(value) => updateNodeData(id, { description: value })}
+	onTypeChange={(type) => updateNodeData(id, { type })}
+/>
