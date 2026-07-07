@@ -98,14 +98,28 @@
 			</Dialog.Close>
 		</div>
 
-		<div class="flex min-h-[50vh] flex-1 flex-col overflow-y-auto rounded-md border border-border bg-card p-3">
+		<div
+			class="relative flex min-h-[50vh] flex-1 flex-col overflow-y-auto rounded-md border border-border bg-card p-3"
+		>
 			<MarkdownEditor
 				value={description}
 				oninput={onDescriptionChange}
 				autofocus={title.trim() !== ''}
 				ariaLabel={`Description for ${title.trim() || `item ${itemId}`}`}
+				placeholder="Describe this item. Markdown supported."
 				class="min-h-0 flex-1"
 			/>
+			<svg
+				class="pointer-events-none absolute right-3 bottom-3 h-4 text-muted-foreground/50"
+				viewBox="0 0 208 128"
+				fill="currentColor"
+				aria-hidden="true"
+			>
+				<path
+					d="M15 10a5 5 0 0 0-5 5v98a5 5 0 0 0 5 5h178a5 5 0 0 0 5-5V15a5 5 0 0 0-5-5H15zm0-10h178c8.284 0 15 6.716 15 15v98c0 8.284-6.716 15-15 15H15c-8.284 0-15-6.716-15-15V15C0 6.716 6.716 0 15 0z"
+				/>
+				<path d="M30 98V30h20l20 25 20-25h20v68H90V59L70 84 50 59v39zm125 0l-30-33h20V30h20v35h20z" />
+			</svg>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>

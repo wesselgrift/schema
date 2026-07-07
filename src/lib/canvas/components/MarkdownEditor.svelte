@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { EditorState } from '@codemirror/state';
-	import { EditorView, keymap } from '@codemirror/view';
+	import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view';
 	import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 	import { markdown, markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
 	import { markdownLivePreview } from '../markdown/live-preview';
@@ -12,10 +12,18 @@
 		oninput: (value: string) => void;
 		autofocus?: boolean;
 		ariaLabel?: string;
+		placeholder?: string;
 		class?: string;
 	}
 
-	let { value, oninput, autofocus = false, ariaLabel, class: className }: Props = $props();
+	let {
+		value,
+		oninput,
+		autofocus = false,
+		ariaLabel,
+		placeholder,
+		class: className
+	}: Props = $props();
 
 	let view: EditorView | undefined;
 
@@ -38,6 +46,7 @@
 			caretColor: 'var(--foreground)'
 		},
 		'.cm-line': { padding: '0' },
+		'.cm-placeholder': { color: 'var(--muted-foreground)' },
 		'.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)' },
 		'&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
 			backgroundColor: 'color-mix(in oklch, var(--primary) 22%, transparent)'
@@ -60,6 +69,7 @@
 		return (element) => {
 			const initialDoc = untrack(() => value);
 			const shouldFocus = untrack(() => autofocus);
+			const placeholderText = untrack(() => placeholder);
 
 			const state = EditorState.create({
 				doc: initialDoc,
@@ -70,6 +80,7 @@
 					EditorView.lineWrapping,
 					theme,
 					markdownLivePreview(),
+					...(placeholderText ? [placeholderExt(placeholderText)] : []),
 					EditorView.updateListener.of((update) => {
 						if (update.docChanged) {
 							oninput(update.state.doc.toString());
