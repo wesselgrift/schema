@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { NodeResizer, NodeToolbar, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
+	import { getContext } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { MIN_SECTION_SIZE, type SectionFlowNode } from '../flow';
 
@@ -12,6 +13,9 @@
 	let { id, data, selected = false }: NodeProps<FocusableSectionFlowNode> = $props();
 
 	const { updateNode, updateNodeData } = useSvelteFlow<FocusableSectionFlowNode>();
+	const history = getContext<{ beginGesture: () => void; endGesture: () => void } | undefined>(
+		'canvas-history'
+	);
 
 	let isActive = $derived(selected || data.isDropTarget);
 
@@ -97,8 +101,12 @@
 	isVisible={selected}
 	lineClass="border-blue-500"
 	handleClass="h-2.5! w-2.5! border-blue-500! bg-background!"
+	onResizeStart={() => history?.beginGesture()}
 	onResize={(_, params) => syncSectionSize(params)}
-	onResizeEnd={(_, params) => syncSectionSize(params)}
+	onResizeEnd={(_, params) => {
+		syncSectionSize(params);
+		history?.endGesture();
+	}}
 />
 
 <div
