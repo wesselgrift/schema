@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildIaModel, renderContextMarkdown } from './export';
+import * as exportModule from './export';
 import {
 	createPageFlowEdge,
 	createSectionNode,
@@ -22,6 +23,77 @@ function item(
 }
 
 describe('IA export serializer', () => {
+	test('builds a canonical model without trimming text or replacing flow IDs with titles', () => {
+		expect(exportModule).toHaveProperty('buildCanonicalExportModel');
+
+		const buildCanonicalExportModel = (
+			exportModule as typeof exportModule & {
+				buildCanonicalExportModel: (
+					nodes: CanvasFlowNode[],
+					edges: PageFlowEdge[],
+					project: { id: string; name: string }
+				) => {
+					manifestVersion: number;
+					project: { id: string; name: string };
+					items: Array<{
+						id: string;
+						title: string;
+						description: string;
+						type: ItemType;
+						sectionId: string | null;
+					}>;
+					edges: Array<{
+						id: string;
+						sourceId: string;
+						targetId: string;
+						condition: string;
+					}>;
+				};
+			}
+		).buildCanonicalExportModel;
+
+		const section = createSectionNode(1, { x: 0, y: 0 }, { title: '  Auth  ' });
+		const signup = reparentItemNode(
+			item(1, '  Sign up  ', '  Keep this text exactly. \n', { x: 0, y: 0 }, 'form'),
+			section,
+			[section]
+		);
+		const account = item(2, 'Sign up', '', { x: 0, y: 0 }, 'api');
+		const edge = createPageFlowEdge(
+			'edge-1',
+			{ source: signup.id, target: account.id },
+			'  preserve this condition  '
+		);
+
+		const model = buildCanonicalExportModel([section, signup, account], [edge], {
+			id: 'canvas-42',
+			name: '  Acme  '
+		});
+
+		expect(model.manifestVersion).toBe(1);
+		expect(model.project).toEqual({ id: 'canvas-42', name: '  Acme  ' });
+		expect(model.items).toEqual([
+			{
+				id: 'item-1',
+				title: '  Sign up  ',
+				description: '  Keep this text exactly. \n',
+				type: 'form',
+				sectionId: 'section-1'
+			},
+			{ id: 'item-2', title: 'Sign up', description: '', type: 'api', sectionId: null }
+		]);
+		expect(model.edges).toEqual([
+			{
+				id: 'edge-1',
+				sourceId: 'item-1',
+				targetId: 'item-2',
+				sourceHandle: null,
+				targetHandle: null,
+				condition: '  preserve this condition  '
+			}
+		]);
+	});
+
 	test('nests items under their section and keeps descriptions verbatim', () => {
 		const section = createSectionNode(1, { x: 400, y: 300 }, { title: 'Onboarding' });
 		const signup = reparentItemNode(

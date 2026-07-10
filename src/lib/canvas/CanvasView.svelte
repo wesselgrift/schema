@@ -1338,7 +1338,13 @@
 		</Tabs.Root>
 	</div>
 
-	<ExportSpecDialog bind:open={isExportOpen} {nodes} {edges} {projectName} />
+	<ExportSpecDialog
+		bind:open={isExportOpen}
+		{nodes}
+		{edges}
+		canvasId={store.activeCanvasId}
+		{projectName}
+	/>
 </section>
 
 <style>
