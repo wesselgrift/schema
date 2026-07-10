@@ -8,6 +8,8 @@ import {
 } from './flow';
 import { getItemTypeLabel, type ItemType } from './item-types';
 
+export { buildSpecPackage, zipSpecFiles, type SpecFile, type SpecPackage } from './spec-package';
+
 export type IaItem = {
 	id: string;
 	title: string;
@@ -33,7 +35,93 @@ export type IaModel = {
 	flows: IaFlow[];
 };
 
+export const CANONICAL_EXPORT_MANIFEST_VERSION = 1;
+
+export type CanonicalExportProject = {
+	id: string;
+	name: string;
+};
+
+export type CanonicalExportSection = {
+	id: string;
+	title: string;
+};
+
+export type CanonicalExportItem = {
+	id: string;
+	title: string;
+	description: string;
+	type: ItemType;
+	sectionId: string | null;
+};
+
+export type CanonicalExportEdge = {
+	id: string;
+	sourceId: string;
+	targetId: string;
+	sourceHandle: string | null;
+	targetHandle: string | null;
+	condition: string;
+};
+
+export type CanonicalExportModel = {
+	manifestVersion: typeof CANONICAL_EXPORT_MANIFEST_VERSION;
+	project: CanonicalExportProject;
+	sections: CanonicalExportSection[];
+	items: CanonicalExportItem[];
+	edges: CanonicalExportEdge[];
+};
+
 const UNKNOWN_ITEM_TITLE = 'Untitled item';
+
+function compareById<T extends { id: string }>(left: T, right: T): number {
+	return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+}
+
+/**
+ * Creates the canonical, position-free export source. Unlike the legacy IA
+ * renderer, this model keeps user-provided text and graph IDs untouched.
+ */
+export function buildCanonicalExportModel(
+	nodes: CanvasFlowNode[],
+	edges: PageFlowEdge[],
+	project: CanonicalExportProject
+): CanonicalExportModel {
+	const sections = nodes
+		.filter((node): node is SectionFlowNode => node.type === SECTION_NODE_TYPE)
+		.map((section) => ({ id: section.id, title: section.data.title }))
+		.sort(compareById);
+
+	const items = nodes
+		.filter((node): node is ItemFlowNode => node.type === ITEM_NODE_TYPE)
+		.map((item) => ({
+			id: item.id,
+			title: item.data.title,
+			description: item.data.description,
+			type: item.data.type,
+			sectionId: item.parentId ?? null
+		}))
+		.sort(compareById);
+
+	const canonicalEdges = edges
+		.map((edge) => ({
+			id: edge.id,
+			sourceId: edge.source,
+			targetId: edge.target,
+			sourceHandle: edge.sourceHandle ?? null,
+			targetHandle: edge.targetHandle ?? null,
+			condition: edge.data?.label ?? ''
+		}))
+		.sort(compareById);
+
+	return {
+		manifestVersion: CANONICAL_EXPORT_MANIFEST_VERSION,
+		project: { id: project.id, name: project.name },
+		sections,
+		items,
+		edges: canonicalEdges
+	};
+}
 
 function toIaItem(node: ItemFlowNode): IaItem {
 	return {
