@@ -8,6 +8,8 @@ export type ProviderPreferences = {
 
 type StorageKind = 'local' | 'session';
 
+const RETIRED_OPENROUTER_MIGRATION_KEY = 'schema:llm:openrouter:retired';
+
 function getStorage(kind: StorageKind): Storage | null {
 	if (typeof window === 'undefined') return null;
 
@@ -79,7 +81,19 @@ function migrateLegacyOpenAiPreferences(): void {
 	writeStorage('local', migrationKey, 'true');
 }
 
+function retireOpenRouterPreferences(): void {
+	if (readStorage('local', RETIRED_OPENROUTER_MIGRATION_KEY) !== null) return;
+
+	for (const kind of ['local', 'session'] as const) {
+		removeStorage(kind, 'schema:llm:openrouter:api-key');
+	}
+	removeStorage('local', 'schema:llm:openrouter:model');
+	removeStorage('local', 'schema:llm:openrouter:remember');
+	writeStorage('local', RETIRED_OPENROUTER_MIGRATION_KEY, 'true');
+}
+
 export function loadProviderPreferences(provider: LlmProviderId): ProviderPreferences {
+	retireOpenRouterPreferences();
 	if (provider === 'openai') migrateLegacyOpenAiPreferences();
 
 	const apiKeyKey = providerStorageKey(provider, 'api-key');

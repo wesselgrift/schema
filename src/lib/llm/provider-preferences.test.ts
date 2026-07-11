@@ -131,6 +131,25 @@ describe('provider preferences', () => {
 		});
 	});
 
+	test('removes retired OpenRouter credentials without affecting other providers', () => {
+		sessionStorage.setItem('schema:llm:openrouter:api-key', 'openrouter-session-key');
+		localStorage.setItem('schema:llm:openrouter:api-key', 'openrouter-persisted-key');
+		localStorage.setItem('schema:llm:openrouter:model', 'anthropic/claude-fable-5');
+		localStorage.setItem('schema:llm:openrouter:remember', 'true');
+		localStorage.setItem('schema:llm:anthropic:api-key', 'anthropic-key');
+		localStorage.setItem('schema:llm:anthropic:model', 'claude-sonnet-5');
+
+		loadProviderPreferences('anthropic');
+
+		expect(sessionStorage.getItem('schema:llm:openrouter:api-key')).toBeNull();
+		expect(localStorage.getItem('schema:llm:openrouter:api-key')).toBeNull();
+		expect(localStorage.getItem('schema:llm:openrouter:model')).toBeNull();
+		expect(localStorage.getItem('schema:llm:openrouter:remember')).toBeNull();
+		expect(localStorage.getItem('schema:llm:openrouter:retired')).toBe('true');
+		expect(localStorage.getItem('schema:llm:anthropic:api-key')).toBe('anthropic-key');
+		expect(localStorage.getItem('schema:llm:anthropic:model')).toBe('claude-sonnet-5');
+	});
+
 	test('disabling remember retains provider session and model state only', () => {
 		saveProviderPreferences('anthropic', {
 			apiKey: 'anthropic-key',

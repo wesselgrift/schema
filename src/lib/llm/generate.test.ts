@@ -139,25 +139,6 @@ describe('provider-neutral spec generation', () => {
 			}
 		},
 		{
-			provider: 'openrouter' as const,
-			modelId: 'anthropic/claude-fable-5',
-			url: 'https://openrouter.ai/api/v1/chat/completions',
-			payload: { choices: [{ message: { content: 'OpenRouter result' } }] },
-			expected: 'OpenRouter result',
-			assertRequest: (url: string, init: RequestInit, body: Record<string, unknown>) => {
-				expect(url).toBe('https://openrouter.ai/api/v1/chat/completions');
-				expect(init.headers).toMatchObject({ Authorization: 'Bearer test-key' });
-				expect(body.model).toBe('anthropic/claude-fable-5');
-				expect(body.max_tokens).toBeGreaterThan(0);
-				expect(body.messages).toEqual(
-					expect.arrayContaining([
-						expect.objectContaining({ role: 'system' }),
-						expect.objectContaining({ role: 'user' })
-					])
-				);
-			}
-		},
-		{
 			provider: 'mistral' as const,
 			modelId: 'mistral-medium-3-5',
 			url: 'https://api.mistral.ai/v1/chat/completions',
@@ -249,7 +230,9 @@ describe('provider-neutral spec generation', () => {
 				context: 'x'.repeat(generateModule.MAX_AI_CONTEXT_CHARS + 1),
 				selection: selection('openai', 'gpt-5.6-sol')
 			})
-		).rejects.toThrow(/too large/i);
+		).rejects.toThrow(
+			'The spec context is too large for AI enrichment (80,001 characters; maximum 80,000). Reduce the canvas context and try again.'
+		);
 
 		expect(fetch).not.toHaveBeenCalled();
 	});
@@ -325,20 +308,21 @@ describe('provider-neutral spec generation', () => {
 		});
 	});
 
-	test('names OpenRouter for non-authentication HTTP failures', async () => {
-		const fetch = vi.fn().mockResolvedValue(response({}, 503));
+	test('rejects legacy OpenRouter selections without fetching', async () => {
+		const fetch = vi.fn();
 		vi.stubGlobal('fetch', fetch);
 
 		await expect(
 			generateSpec()({
 				apiKey: 'test-key',
 				context: 'Canvas facts',
-				selection: selection('openrouter', 'anthropic/claude-fable-5')
+				selection: selection('openrouter' as LlmProviderId, 'anthropic/claude-fable-5')
 			})
 		).rejects.toMatchObject({
 			name: 'LlmProviderError',
-			message: 'OpenRouter request failed (503).'
+			message: 'Invalid provider selection: openrouter.'
 		});
+		expect(fetch).not.toHaveBeenCalled();
 	});
 
 	test.each([

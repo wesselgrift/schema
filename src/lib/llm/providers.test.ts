@@ -17,7 +17,6 @@ describe('LLM provider catalog', () => {
 			'openai',
 			'anthropic',
 			'gemini',
-			'openrouter',
 			'mistral'
 		]);
 	});
@@ -27,6 +26,26 @@ describe('LLM provider catalog', () => {
 
 		expect(recommendedModels).toHaveLength(1);
 		expect(getDefaultModel(provider.id)).toEqual(recommendedModels[0]);
+	});
+
+	test('lists the selected lower-cost models with their providers', () => {
+		expect(getProvider('openai').models).toContainEqual({
+			id: 'gpt-5-mini',
+			label: 'GPT-5 mini',
+			recommended: false
+		});
+		expect(getProvider('anthropic').models).toContainEqual({
+			id: 'claude-haiku-4-5-20251001',
+			label: 'Claude Haiku 4.5',
+			recommended: false
+		});
+	});
+
+	test('does not expose OpenRouter as a provider', () => {
+		expect(LLM_PROVIDERS.map((provider) => provider.id)).not.toContain('openrouter');
+		expect(() => getProvider('openrouter' as LlmProviderId)).toThrow(
+			'Unsupported LLM provider: openrouter'
+		);
 	});
 
 	const supportedProviderModels: readonly [LlmProviderId, string][] = LLM_PROVIDERS.flatMap(

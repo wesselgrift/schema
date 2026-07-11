@@ -2,7 +2,6 @@ import { LLM_PROVIDERS, type LlmProvider, type LlmProviderId } from './providers
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const ANTHROPIC_MESSAGES_URL = 'https://api.anthropic.com/v1/messages';
-const OPENROUTER_CHAT_COMPLETIONS_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MISTRAL_CHAT_COMPLETIONS_URL = 'https://api.mistral.ai/v1/chat/completions';
 
 export const MAX_AI_CONTEXT_CHARS = 80_000;
@@ -81,7 +80,7 @@ function text(value: unknown): string {
 function assertContextSize(context: string): void {
 	if (context.length > MAX_AI_CONTEXT_CHARS) {
 		throw new LlmProviderError(
-			`The spec context is too large for AI enrichment (${context.length.toLocaleString()} characters; maximum ${MAX_AI_CONTEXT_CHARS.toLocaleString()}). Download the base spec package instead.`
+			`The spec context is too large for AI enrichment (${context.length.toLocaleString()} characters; maximum ${MAX_AI_CONTEXT_CHARS.toLocaleString()}). Reduce the canvas context and try again.`
 		);
 	}
 }
@@ -269,24 +268,6 @@ function providerRequest(
 					signal
 				},
 				parse: geminiCandidateText
-			};
-		case 'openrouter':
-			return {
-				url: OPENROUTER_CHAT_COMPLETIONS_URL,
-				init: {
-					method: 'POST',
-					headers: { ...headers, Authorization: `Bearer ${apiKey}` },
-					body: JSON.stringify({
-						model: modelId,
-						max_tokens: MAX_AI_OUTPUT_TOKENS,
-						messages: [
-							{ role: 'system', content: systemPrompt },
-							{ role: 'user', content: userPrompt }
-						]
-					}),
-					signal
-				},
-				parse: chatCompletionText
 			};
 		case 'mistral':
 			return {

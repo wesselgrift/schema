@@ -18,8 +18,14 @@ export type SpecPackage = {
 	files: SpecFile[];
 };
 
+export type GeneratedImplementationArtifacts = {
+	implementationPlan: string;
+	todo: string;
+};
+
 export type BuildSpecPackageOptions = {
 	introduction?: string;
+	implementationArtifacts?: GeneratedImplementationArtifacts;
 };
 
 const TYPE_DIRECTORY: Record<ItemType, string> = {
@@ -252,7 +258,7 @@ function renderReadme(
 	rootPath: string,
 	model: CanonicalExportModel,
 	paths: Map<string, string>,
-	introduction?: string
+	options: BuildSpecPackageOptions
 ): string {
 	const index = model.items
 		.map(
@@ -260,13 +266,21 @@ function renderReadme(
 				`- ${renderItemLink(item, `${rootPath}/README.md`, paths)} (${getItemTypeLabel(item.type)})`
 		)
 		.join('\n');
+	const implementationWorkflow = options.implementationArtifacts
+		? [
+				'## Implementation workflow',
+				'Before planning or implementing, ask the user whether to use the provided [Implementation plan](generated/implementation-plan.md) and [Checklist](generated/todo.md), or create custom artifacts.',
+				'If they request custom artifacts, ask whether they want a plan, a checklist, or both. Use your normal planning workflow and do not modify the provided files.'
+			].join('\n\n')
+		: '';
 
 	return [
 		`# ${model.project.name.trim() || 'Untitled project'} specs`,
-		introduction?.trim() ? `## Introduction\n\n${introduction.trim()}` : '',
+		options.introduction?.trim() ? `## Introduction\n\n${options.introduction.trim()}` : '',
 		'## Start here',
 		'- [Project overview](project-overview.md)',
 		'- `manifest.json` is the machine-readable canonical graph.',
+		implementationWorkflow,
 		'## Item specs',
 		index || '_No items captured._'
 	].join('\n\n') + '\n';
@@ -286,7 +300,7 @@ export function buildSpecPackage(
 	const files: SpecFile[] = [
 		{
 			path: `${rootPath}/README.md`,
-			contents: renderReadme(rootPath, stable, paths, options.introduction)
+			contents: renderReadme(rootPath, stable, paths, options)
 		},
 		{
 			path: `${rootPath}/project-overview.md`,
@@ -296,7 +310,16 @@ export function buildSpecPackage(
 		...stable.items.map((item) => ({
 			path: paths.get(item.id)!,
 			contents: renderItemSpec(item, sectionById, itemsById, paths, stable.edges)
-		}))
+		})),
+		...(options.implementationArtifacts
+			? [
+					{
+						path: `${rootPath}/generated/implementation-plan.md`,
+						contents: options.implementationArtifacts.implementationPlan
+					},
+					{ path: `${rootPath}/generated/todo.md`, contents: options.implementationArtifacts.todo }
+				]
+			: [])
 	];
 
 	return { rootPath, files };
