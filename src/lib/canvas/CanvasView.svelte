@@ -1432,6 +1432,12 @@
 		box-shadow: var(--shadow-popover);
 	}
 
+	.history-controls :global(button:disabled) {
+		opacity: 1;
+		background-color: var(--background);
+		color: color-mix(in oklch, var(--muted-foreground) 35%, var(--background));
+	}
+
 	.project-title-control:focus-within {
 		border-color: var(--color-blue-500);
 	}
