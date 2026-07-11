@@ -11,13 +11,13 @@
 		Cursor02Icon,
 		Delete02Icon,
 		FileAddIcon,
-		FileExportIcon,
 		GroupIcon,
 		Loading03Icon,
 		Redo02Icon,
 		Refresh01Icon,
 		Search01Icon,
 		Share08Icon,
+		AiFileIcon,
 		Tick02Icon,
 		Undo02Icon
 	} from '@hugeicons/core-free-icons';
@@ -1265,12 +1265,11 @@
 		</Button>
 		<Button
 			type="button"
-			variant="outline"
-			class="floating-control-button bg-background hover:bg-secondary"
+			class="floating-control-button"
 			onclick={() => (isExportOpen = true)}
 		>
 			<HugeiconsIcon
-				icon={FileExportIcon}
+				icon={AiFileIcon}
 				data-icon="inline-start"
 				strokeWidth={2}
 				aria-hidden="true"

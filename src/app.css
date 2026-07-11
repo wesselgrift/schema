@@ -24,3 +24,13 @@ body,
 	margin: 0;
 	overflow: hidden;
 }
+
+html {
+	color-scheme: light only;
+}
+
+input,
+textarea,
+select {
+	color-scheme: light only;
+}
