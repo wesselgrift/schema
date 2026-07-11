@@ -16,7 +16,10 @@ type SpecPackage = {
 
 type BuildSpecPackage = (
 	model: CanonicalExportModel,
-	options?: { introduction?: string }
+	options?: {
+		introduction?: string;
+		implementationArtifacts?: { implementationPlan: string; todo: string };
+	}
 ) => SpecPackage;
 type ZipSpecFiles = (files: SpecFile[]) => Uint8Array;
 
@@ -133,6 +136,54 @@ describe('spec package', () => {
 
 		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).toContain(
 			'## Introduction\n\nAcme gives teams a focused account experience.'
+		);
+	});
+
+	test('includes generated implementation artifacts and their LLM workflow', () => {
+		const specPackage = packageBuilder()(
+			model([], []),
+			{
+				implementationArtifacts: {
+					implementationPlan: '# Implementation plan\n\nBuild the account flow.',
+					todo: '# Checklist\n\n- [ ] Build the account flow.'
+				}
+			}
+		);
+
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/generated/implementation-plan.md')).toBe(
+			'# Implementation plan\n\nBuild the account flow.'
+		);
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/generated/todo.md')).toBe(
+			'# Checklist\n\n- [ ] Build the account flow.'
+		);
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).toContain(
+			'[Implementation plan](generated/implementation-plan.md)'
+		);
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).toContain(
+			'[Checklist](generated/todo.md)'
+		);
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).toContain(
+			'ask the user whether to use the provided [Implementation plan](generated/implementation-plan.md) and [Checklist](generated/todo.md), or create custom artifacts.'
+		);
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).toContain(
+			'ask whether they want a plan, a checklist, or both'
+		);
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).toContain(
+			'Use your normal planning workflow'
+		);
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).toContain(
+			'do not modify the provided files'
+		);
+	});
+
+	test('omits implementation artifact links when they are not included', () => {
+		const specPackage = packageBuilder()(model([], []));
+
+		expect(fileContents(specPackage, 'specs/acme-canvas-42/README.md')).not.toContain(
+			'generated/implementation-plan.md'
+		);
+		expect(specPackage.files.map((file) => file.path)).not.toContain(
+			'specs/acme-canvas-42/generated/implementation-plan.md'
 		);
 	});
 

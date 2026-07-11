@@ -1,4 +1,4 @@
-export type LlmProviderId = 'openai' | 'anthropic' | 'gemini' | 'openrouter' | 'mistral';
+export type LlmProviderId = 'openai' | 'anthropic' | 'gemini' | 'mistral';
 
 export type LlmModel = {
 	readonly id: string;
@@ -38,21 +38,18 @@ export const LLM_PROVIDERS: readonly LlmProvider[] = Object.freeze([
 	createProvider('openai', 'OpenAI', 'OpenAI API key', 'sk-...', [
 		createModel('gpt-5.6-sol', 'GPT-5.6 Sol', true),
 		createModel('gpt-5.6-terra', 'GPT-5.6 Terra', false),
-		createModel('gpt-5.6-luna', 'GPT-5.6 Luna', false)
+		createModel('gpt-5.6-luna', 'GPT-5.6 Luna', false),
+		createModel('gpt-5-mini', 'GPT-5 mini', false)
 	]),
 	createProvider('anthropic', 'Anthropic', 'Anthropic API key', 'sk-ant-...', [
 		createModel('claude-fable-5', 'Claude Fable 5', true),
 		createModel('claude-opus-4-8', 'Claude Opus 4.8', false),
-		createModel('claude-sonnet-5', 'Claude Sonnet 5', false)
+		createModel('claude-sonnet-5', 'Claude Sonnet 5', false),
+		createModel('claude-haiku-4-5-20251001', 'Claude Haiku 4.5', false)
 	]),
 	createProvider('gemini', 'Gemini', 'Google Gemini API key', 'AIza...', [
 		createModel('gemini-3.5-flash', 'Gemini 3.5 Flash', true),
 		createModel('gemini-3.1-flash-lite', 'Gemini 3.1 Flash-Lite', false)
-	]),
-	createProvider('openrouter', 'OpenRouter', 'OpenRouter API key', 'sk-or-...', [
-		createModel('anthropic/claude-fable-5', 'Claude Fable 5', true),
-		createModel('openai/gpt-5.6-sol', 'GPT-5.6 Sol', false),
-		createModel('anthropic/claude-opus-4.8', 'Claude Opus 4.8', false)
 	]),
 	createProvider('mistral', 'Mistral', 'Mistral API key', 'Your Mistral API key', [
 		createModel('mistral-medium-3-5', 'Mistral Medium 3.5', true),

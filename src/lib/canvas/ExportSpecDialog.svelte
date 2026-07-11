@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { AiMagicIcon, ChevronDownIcon, Loading03Icon } from '@hugeicons/core-free-icons';
+	import { ChevronDownIcon, Loading03Icon } from '@hugeicons/core-free-icons';
 	import { tick } from 'svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
@@ -43,7 +43,6 @@
 	} = $props();
 
 	const initialPreferences = loadProviderPreferences('openai');
-	let includeAiArtifacts = $state(false);
 	let providerId = $state<LlmProviderId>('openai');
 	let modelId = $state(initialPreferences.modelId);
 	let rememberApiKey = $state(initialPreferences.rememberApiKey);
@@ -64,10 +63,6 @@
 	function handleOpenChange(next: boolean) {
 		if (!next) aiExportController?.abort();
 		if (next) errorMessage = '';
-	}
-
-	function setAiArtifactsEnabled(enabled: boolean) {
-		includeAiArtifacts = enabled;
 	}
 
 	function setRememberApiKey(enabled: boolean) {
@@ -179,7 +174,6 @@
 				id: canvasId,
 				name: projectName
 			});
-			buildSpecPackage(canonicalModel);
 			const filename = `${slugify(projectName)}-specs.zip`;
 			const selection: LlmSelection = { provider: providerId, modelId };
 			saveActivePreferences(trimmedKey, selection);
@@ -200,15 +194,6 @@
 			}
 
 			if (wasExportCancelled(controller)) return;
-			const specPackage = buildSpecPackage(canonicalModel, { introduction });
-			const baseZip = zipSpecFiles(specPackage.files);
-
-			if (!includeAiArtifacts) {
-				if (wasExportCancelled(controller)) return;
-				downloadZip(baseZip, filename);
-				open = false;
-				return;
-			}
 
 			try {
 				const artifacts = await generateImplementationArtifacts({
@@ -218,22 +203,17 @@
 					signal: controller.signal
 				});
 				if (wasExportCancelled(controller)) return;
-				const enrichedZip = zipSpecFiles([
-					...specPackage.files,
-					{
-						path: `${specPackage.rootPath}/generated/implementation-plan.md`,
-						contents: artifacts.implementationPlan
-					},
-					{ path: `${specPackage.rootPath}/generated/todo.md`, contents: artifacts.todo }
-				]);
+				const specPackage = buildSpecPackage(canonicalModel, {
+					introduction,
+					implementationArtifacts: artifacts
+				});
 
 				if (wasExportCancelled(controller)) return;
-				downloadZip(enrichedZip, filename);
+				downloadZip(zipSpecFiles(specPackage.files), filename);
 				open = false;
 			} catch (error) {
 				if (wasExportCancelled(controller)) return;
-				downloadZip(baseZip, filename);
-				errorMessage = `AI enrichment failed: ${formatError(error, 'Unable to generate implementation artifacts.')}. The base package was downloaded.`;
+				errorMessage = `Could not generate the implementation plan and checklist: ${formatError(error, 'Unknown error.')}. No package was downloaded.`;
 			}
 		} catch (error) {
 			if (wasExportCancelled(controller)) return;
@@ -252,7 +232,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Export spec package</Dialog.Title>
 			<Dialog.Description>
-				Generates a project introduction for the README, then downloads a structured ZIP package.
+				Generates the README introduction, implementation plan, and checklist, then downloads a structured ZIP package.
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -310,7 +290,7 @@
 							</Popover.Content>
 						{/if}
 					</Popover.Root>
-					<Field.Description>Used for the README and optional artifacts.</Field.Description>
+					<Field.Description>Used for the README, implementation plan, and checklist.</Field.Description>
 				</Field.Field>
 
 				<Field.Field data-disabled={isExporting}>
@@ -396,16 +376,6 @@
 				Remember API key on this device
 			</label>
 
-			<label class="flex items-center gap-2 text-sm font-medium text-foreground">
-				<input
-					type="checkbox"
-					checked={includeAiArtifacts}
-					onchange={(event) => setAiArtifactsEnabled(event.currentTarget.checked)}
-					disabled={isExporting}
-				/>
-				Add implementation plan and checklist
-			</label>
-
 			{#if errorMessage}
 				<p class="text-destructive" role="alert">{errorMessage}</p>
 			{/if}
@@ -425,9 +395,6 @@
 						aria-hidden="true"
 					/>
 					Generating…
-				{:else if includeAiArtifacts}
-					<HugeiconsIcon icon={AiMagicIcon} data-icon="inline-start" strokeWidth={2} aria-hidden="true" />
-					Generate specs
 				{:else}
 					Generate specs
 				{/if}
